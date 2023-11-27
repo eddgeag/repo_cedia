@@ -1323,7 +1323,7 @@ compute_depth <- function(fastq_dir, output_dir) {
     dir.create(dir_coverage)
   }
   outfile_coverage <- file.path(dir_coverage,"coverage.txt")
-  comando <- paste("~/compute_depth.sh", bam_file, ">",outfile_coverage)
+  comando <- paste("./compute_depth.sh", bam_file, ">",outfile_coverage)
   if(!file.exists(outfile_coverage)){
     print("computando cobertura...")
     print(comando)
