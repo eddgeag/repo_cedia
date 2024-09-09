@@ -847,7 +847,7 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
         in_file,
         "-O",
         out_file,
-        "--filter-name LOW_depth10  --filter-expression 'DP< 10'"
+        "--filter-name LOW_depth1  --filter-expression 'DP< 1'"
       )
     system(command = command, intern = T)
     
@@ -950,16 +950,16 @@ anotation <-
     
     comando1 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "snpEff.jar"),
-        " GRCh38.105 -v ",
+        "hg38 -v ",
         in_file,
         " > ",
         output_file_anno1
       )
     comando2 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
         " varType -v ",
         output_file_anno1,
@@ -968,16 +968,16 @@ anotation <-
       )
     comando3 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
-        " annotate -v ~/datos_exomas/datos_clinvar/clinvar_20231007.vcf",
+        " annotate -v ~/datos_exomas/datos_clinvar/clinvar.vcf.gz",
         output_file_anno1_1,
         " > ",
         output_file_anno2
       )
     comando4 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
         " dbnsfp -v -db ~/datos_exomas/datos_dbsnp/dbNSFP4.1a.txt.gz",
         output_file_anno2,
@@ -986,7 +986,7 @@ anotation <-
       )
     comando5 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
         " gwasCat -db ~/datos_exomas/gwas/gwascatalog.txt",
         output_file_anno3,
@@ -997,7 +997,7 @@ anotation <-
       "aaref,aaalt,rs_dbSNP151,HGVSc_snpEff,HGVSp_snpEff,APPRIS,M-CAP_pred,CADD_phred,GTEx_V8_gene,GTEx_V8_gene,GTEx_V8_tissue,Geuvadis_eQTL_target_gene,Reliability_index"
     comando6 <-
       paste(
-        "java -Xmx16g -jar",
+        "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
         " dbnsfp  -v -db ~/datos_exomas/datos_dbsnp/dbNSFP4.1a.txt.gz -f",
         campos,
@@ -1195,8 +1195,10 @@ process <- function(output_dir, fastq_dir, hpo_file, muestra) {
     
     gtfields <- bind_cols(POS = first$POS, AD = gtfiedls[, 2])
     X$errors <- errors
+    X <- X[which(!duplicated(X$POS)),]
+    gtfields <- gtfields[which(!duplicated(gtfields$POS)),]
     X <-
-      left_join(X, gtfields, "POS", relationship = "many-to-many")
+      inner_join(X, gtfields, "POS")
     
     ad <- strsplit2(X$AD, ",")
     ad[, 3] <- ifelse(ad[, 3] == "", 0, ad[, 3])
@@ -1296,7 +1298,7 @@ process <- function(output_dir, fastq_dir, hpo_file, muestra) {
     X <- X[!duplicated(X[,c("gene_name","POS","END")]),]
     Y <- X[which(X$errors==""|X$errors=="INFO_REALIGN_3_PRIME"),]
 
-    write.csv(X, file = file.path(process_dir, "file_ready_analysis.csv"))
+    write.csv(Y, file = file.path(process_dir, "file_ready_analysis.csv"))
     write.csv(X, file=file.path(process_dir,"file_raw_analysis.csv"))
   } else{
     "Ya estamos listo para el analisis, me saliste cubano wey"
@@ -1422,18 +1424,18 @@ if(!file.exists(file.path(dir_coverage,"stats.csv"))){
   datos.pre$relleno <- as.factor(datos.pre$relleno)
   p1 <-
     ggplot(data = datos.pre, aes(X, Y, fill = relleno)) + geom_line(color =
-                                                                      "steelblue", linewidth = 2) + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la región >= Profunidad") + theme(legend.position = "none") +
+                                                                      "steelblue", linewidth = 2) + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region >= Profunidad") + theme(legend.position = "none") +
     theme_classic()
   p2 <-
     ggplot(data = datos.pre, aes(X, Z, fill = relleno)) + geom_col() + scale_fill_discrete(type =
-                                                                                             "steelblue") + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la región") + theme(legend.position = "none") + theme_classic()
+                                                                                             "steelblue") + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region") + theme(legend.position = "none") + theme_classic()
   
-  p3 <- ggarrange(p1, p2, ncol = 2)
+  p3 <-ggpubr::ggarrange(p1, p2, ncol = 2)
   
   figura_file_name <- file.path(dir_coverage,"cobertura.jpeg")
   
   p4 <-
-    annotate_figure(p3,
+    ggpubr::annotate_figure(p3,
                     top = paste(
                       muestra,
                       "Profundidad media de cobertura:",
@@ -1504,22 +1506,61 @@ if(!file.exists(file.path(output_dir,"post_process_results","file_ready_analysis
   bd_exoma <- bd[which(as.numeric(bd$Start) %in% posiciones_start),]
   colnames(bd_exoma) <- c("CHROM","POS","END","gene_name","N","samples")
   bd_exoma$POS <- as.numeric(bd_exoma$POS)
-  exoma$POS <- as.numeric(exoma$POS)
-  bd_exoma <- bd_exoma[,-3]
-  exoma_optimized <- right_join(bd_exoma,exoma,by=c("CHROM","gene_name","POS"))
-  exoma_optimized <- exoma_optimized[!duplicated(exoma_optimized[,c("gene_name","POS","CHROM")]),]
- for(n in 1:nrow(exoma_optimized)){
-   
-   exoma_optimized$N[n] <- length(unlist(strsplit(exoma_optimized$samples[n],",")))
-   
- }
+bd_exoma$END <-	as.numeric(bd_exoma$END)
+exoma$POS <- as.numeric(exoma$POS)
+exoma$END <- as.numeric(exoma$END)
+exoma_optimized <- dplyr::right_join(bd_exoma, exoma, by = c("CHROM", "gene_name", "POS","END"))
+exoma_optimized <- exoma_optimized[!duplicated(exoma_optimized[, c("gene_name", "POS", "CHROM","END")]), ]
+for (n in 1:nrow(exoma_optimized)) {
+  exoma_optimized$N[n] <- length(unlist(strsplit(exoma_optimized$samples[n], ",")))
 
+}
+   
   write.csv(exoma_optimized,file.path(output_dir,"post_process_results","file_raw_analysis_optimized.csv"))
   
 
   exoma_optimized<- exoma_optimized[!duplicated(exoma_optimized[,c("gene_name","POS","END")]),]
   exoma_optimized_ready <- exoma_optimized[which(exoma_optimized$errors==""|exoma_optimized$errors=="INFO_REALIGN_3_PRIME"),]
   write.csv(exoma_optimized_ready,file.path(output_dir,"post_process_results","file_ready_analysis_optimized.csv"))
+
+  unique_variants <- exoma_optimized_ready[exoma_optimized_ready$N==1,]
+  acmg <- read.delim("./acmg.txt",header=T)[,1]
+  secondary <- exoma_optimized_ready[exoma_optimized_ready$gene_name %in% acmg,]
+  secondary_unique <- secondary[secondary$N==1,]
+  write.csv(unique_variants,file.path(output_dir,"post_process_results","file_unique_variants_analysis_optimized.csv"))
+  write.csv(secondary,file.path(output_dir,"post_process_results","file_secondary_findings_analysis_optimized.csv"))
+  write.csv(secondary_unique,file.path(output_dir,"post_process_results","file_unique_variants_secondary_analysis_optimized.csv"))
+ ## low coverage
+  acmg_low <- secondary[secondary$DP<20,]
+  acmg_low_unique <- secondary_unique[secondary_unique$DP<20,]
+  unique_low <- unique_variants[unique_variants$DP<20,]
+  raw_low <- exoma_optimized_ready[exoma_optimized_ready$DP<20,]
+ ## high coverage >=20
+  acmg_high <- secondary[secondary$DP<20,]
+  acmg_high_unique <- secondary_unique[secondary_unique$DP>=20,]
+  unique_high <- unique_variants[unique_variants$DP>=20,]
+  raw_high <- exoma_optimized_ready[exoma_optimized_ready$DP>=20,]
+ ## DIRECTORIOS
+  dir_low <- file.path(output_dir,"post_process_results","low_coverage")
+  if(!dir.exists(dir_low)){
+	dir.create(dir_low)
+	}
+  dir_high <- file.path(output_dir,"post_process_results","high_coverage")
+ if(!dir.exists(dir_high)){
+        dir.create(dir_high)
+	}
+
+  ### write low coverage
+  write.csv(acmg_low,file.path(dir_low,"acmg_low.csv"))
+  write.csv(acmg_low_unique,file.path(dir_low,"acmg_low_unique.csv"))
+  write.csv(unique_low,file.path(dir_low,"unique_low.csv"))
+  write.csv(raw_low,file.path(dir_low,"raw_low.csv"))
+  ### write high coverage
+  write.csv(acmg_high,file.path(dir_high,"acmg_high.csv"))
+  write.csv(acmg_high_unique,file.path(dir_high,"acmg_high_unique.csv"))
+  write.csv(unique_high,file.path(dir_high,"unique_high.csv"))
+  write.csv(raw_high,file.path(dir_high,"raw_high.csv"))
+
 
 }else{
 print("ya estan las unicas variantes")
@@ -1574,7 +1615,7 @@ for (muestra in muestras) {
   hpo_file <- "~/datos_exomas/data_pipeline/genes_to_phenotype.txt"
   fastq_dir <- file.path("~/pipeline/exomas", muestra, "fastqfiles")
   folder_fasta <-
-    file.path("~/datos_exomas/datos_gatk/referencia/ensembl")
+    file.path("~/datos_exomas/datos_gatk/hg38")
   folder_data_gatk <- file.path("~/datos_exomas/datos_gatk")
   path_snpeff <- "~/tools/snpEff/"
   bd_data <- "./bd.rds"
