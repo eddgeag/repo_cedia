@@ -318,7 +318,7 @@ markdups <- function(output_dir = output_dir,
   if (!file.exists(mark_file)) {
 
 	command <- paste("~/tools/gatk-4.3.0.0/gatk MarkDuplicates -CREATE_INDEX true -INPUT",
-  			bam_file,"-VALIDATION_STRINGENCY STRICT -OUTPUT",
+  			bam_file,"-VALIDATION_STRINGENCY STRICT --REMOVE_DUPLICATES true -OUTPUT",
 			mark_file,"-M",
 			metrics_file)
 
@@ -1351,8 +1351,8 @@ if(!file.exists(file.path(dir_coverage,"stats.csv"))){
   exoma <- read.csv(exoma_file,na.strings = ".")
   interest.data <- cov_data[cov_data$V1 !=
                               "all", "V7"]
-  mean_coverage <- round(mean(interest.data), 2)
-  mean_coverage20 <- round(mean(interest.data[interest.data>20]), 2)
+  mean_coverage <- round(mean(interest.data,na.rm=T), 2)
+  mean_coverage20 <- round(mean(interest.data[interest.data>20],na.rm=T), 2)
   cov.data <- cov_data
   
   cov.data$V4 <- gsub("_.*","",cov.data$V4)
@@ -1439,8 +1439,7 @@ if(!file.exists(file.path(dir_coverage,"stats.csv"))){
                     top = paste(
                       muestra,
                       "Profundidad media de cobertura:",
-                      round(mean(cov_data[cov_data$V1 !=
-                                             "all", "V7"]), 2),
+                      mean_coverage,
                       "X"
                     ))
   ggsave(filename = figura_file_name,plot=p4)
