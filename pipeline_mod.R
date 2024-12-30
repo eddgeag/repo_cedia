@@ -1349,6 +1349,8 @@ if(!file.exists(file.path(dir_coverage,"stats.csv"))){
   
   cov_data <- read.delim(cov_file,header = F)
   exoma <- read.csv(exoma_file,na.strings = ".")
+  cromosomas <- c(paste0("chr",1:22),"chrX","chrY")
+  exoma <- exoma[exoma$CHROM %in% cromosomas,]
   interest.data <- cov_data[cov_data$V1 !=
                               "all", "V7"]
   mean_coverage <- round(mean(interest.data,na.rm=T), 2)
