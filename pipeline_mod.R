@@ -379,7 +379,7 @@ creacion_readgroup <-
           mark_file,
           "O=",
           out_file,
-          "RGID=1 RGLB=lib2 RGPL=illumina RGPU=unit1 RGSM=1"
+          "RGID=1 RGLB=lib2 RGPL=PACBIO RGPU=unit1 RGSM=1"
         )
       system(command = command, intern = T)
       
