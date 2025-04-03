@@ -379,7 +379,7 @@ creacion_readgroup <-
           mark_file,
           "O=",
           out_file,
-          "RGID=1 RGLB=lib2 RGPL=PACBIO RGPU=unit1 RGSM=1"
+          "RGID=1 RGLB=lib2 RGPL=ILLUMINA RGPU=unit1 RGSM=1"
         )
       system(command = command, intern = T)
       
@@ -1516,7 +1516,9 @@ for (n in 1:nrow(exoma_optimized)) {
   exoma_optimized$N[n] <- length(unlist(strsplit(exoma_optimized$samples[n], ",")))
 
 }
-   
+  sample_aux <- unique(exoma_optimized$SAMPLE)
+  exoma_optimized <- exoma_optimized[-which(!grepl(sample_aux,exoma_optimized$samples)),]
+ 
   write.csv(exoma_optimized,file.path(output_dir,"post_process_results","file_raw_analysis_optimized.csv"))
   
 
