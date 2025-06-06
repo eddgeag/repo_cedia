@@ -1037,8 +1037,7 @@ anotation <-
       system(command = comando6, intern = T)
     }
     
-    ### convertir a tsv
-    
+  print("YA ESTA ANOTADO")
     
   }
 
@@ -1171,6 +1170,8 @@ process_vcf_to_table <- function(folder_fasta,
   }
   
   vcf_file <- output_file_anno5
+  
+  print(vcf_file)
     # Leer el VCF y parsear datos
   vcf <- readVcf(vcf_file, "hg38")
   
