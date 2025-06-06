@@ -979,7 +979,7 @@ anotation <-
       paste(
         "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
-        " dbnsfp -v -db ~/datos_exomas/datos_dbsnp/dbNSFP4.1a.txt.gz",
+        " dbnsfp -v -db ~/datos_exomas/datos_dbsnp/dbNSFP5.1a_grch38.gz",
         output_file_anno2,
         ">",
         output_file_anno3
@@ -994,12 +994,12 @@ anotation <-
         output_file_anno4
       )
     campos <-
-      "aaref,aaalt,rs_dbSNP151,HGVSc_snpEff,HGVSp_snpEff,APPRIS,M-CAP_pred,CADD_phred,GTEx_V8_gene,GTEx_V8_gene,GTEx_V8_tissue,Geuvadis_eQTL_target_gene,Reliability_index"
+      "aaref,aaalt,rs_dbSNP,HGVSc_snpEff,HGVSp_snpEff,APPRIS,M-CAP_pred,CADD_phred,clinvar_OMIM_id,clinvar_Orphanet_id,clinvar_MedGen_id,AlphaMissense_pred,Reliability_index"
     comando6 <-
       paste(
         "java -Xmx32g -jar",
         file.path(path_snpeff, "SnpSift.jar"),
-        " dbnsfp  -v -db ~/datos_exomas/datos_dbsnp/dbNSFP4.1a.txt.gz -f",
+        " dbnsfp  -v -db ~/datos_exomas/datos_dbsnp/dbNSFP5.1a_grch38.gz -f",
         campos,
         output_file_anno4,
         ">",
