@@ -1181,6 +1181,7 @@ process_vcf_to_table <- function(folder_fasta,
   geno_list   <- geno(vcf)
   geno_df     <- do.call(cbind, lapply(geno_list, as.data.frame))
   
+  print(head(info_df))
   # --- Extraer ANN: solo primera anotación de cada variante
   info_ann_1 <- info_df %>%
     mutate(
@@ -1195,6 +1196,7 @@ process_vcf_to_table <- function(folder_fasta,
     select(-ANN_single, -ANN)
   
   info_con_ann_df <- info_ann_1
+  print(head(info_con_ann_df))
   
   # --- Unir variantes + info + ANN + geno
   final_vcf_df <- bind_cols(variantes_df, info_df, info_con_ann_df, geno_df)
