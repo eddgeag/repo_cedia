@@ -1604,6 +1604,8 @@ process_vcf_to_table <- function(folder_fasta,
   
   df_limpio <- bind_cols(SAMPLE = muestra, df_limpio)
   
+  print(head(df_limpio))
+  
   bd_list_ <- readRDS(db)
   cromosomas_ <- c(paste0("chr", 1:22), "chrX", "chrY", "chrM")
   
