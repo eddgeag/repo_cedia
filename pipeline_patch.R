@@ -1833,8 +1833,8 @@ process_vcf_to_table <- function(folder_fasta,
 start <- Sys.time()
 args <- commandArgs(trailingOnly = T)
 args <- unlist(strsplit(args, " "))
-muestras <- args
-for (muestra in muestras) {
+muestra <- args
+# for (muestra in muestras) {
   output_dir <- file.path("~/pipeline/exomas", muestra, "output_dir")
   if (!dir.exists(output_dir)) {
     dir.create(output_dir)
@@ -1891,5 +1891,5 @@ for (muestra in muestras) {
   # compute_stats(fastq_dir, output_dir, muestra)
   
   
-}
+# }
 print(Sys.time() - start)
