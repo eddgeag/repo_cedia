@@ -1189,16 +1189,16 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Extraer ANN
   print("Procesando anotación ANN...")
   info_ann_1 <- info_df %>%
-    mutate(
-      ANN_single = if_else(is.na(ANN), NA_character_, sub(",.*", "", ANN)),
-      ANN_parts  = str_split(ANN_single, "\\|")
-    ) %>%
-    unnest_wider(col = ANN_parts, names_sep = "_") %>%
-    rename_with(
-      .cols = starts_with("ANN_parts_"),
-      .fn = ~ str_replace(.x, "ANN_parts_", "ANN_")
-    ) %>%
-    select(-ANN_single, -ANN)
+  dplyr::mutate(
+    ANN_single = if_else(is.na(ANN), NA_character_, sub(",.*", "", ANN)),
+    ANN_parts  = stringr::str_split(ANN_single, "\\|")
+  ) %>%
+  tidyr::unnest_wider(col = ANN_parts, names_sep = "_") %>%
+  dplyr::rename_with(
+    .cols = starts_with("ANN_parts_"),
+    .fn = ~ stringr::str_replace(.x, "ANN_parts_", "ANN_")
+  ) %>%   dplyr::select(-ANN_single, -ANN)
+  
   info_con_ann_df <- info_ann_1
   print("ANN procesado.")
   print(head(info_con_ann_df))
