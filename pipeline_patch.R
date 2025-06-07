@@ -1150,39 +1150,44 @@ process_vcf_to_table <- function(folder_fasta,
                                  fastq_dir,
                                  muestra,
                                  db) {
-  
-  ## obtenemos el nombre del archivo
+  print("=== Iniciando process_vcf_to_table ===")
   fastq_files <- list.files(fastq_dir, full.names = F)
+  print(paste("FASTQ files encontrados:", paste(fastq_files, collapse = ", ")))
   output_file_name <-
     unlist(strsplit(gsub("R[12]", "map", fastq_files[1]), "/"))
   output_file_name <- file_path_sans_ext(output_file_name)
   anotacion_dir <- file.path(output_dir, "anotation")
   output_file_anno5 <-
-    file.path(
-      anotacion_dir,
-      paste0(output_file_name, "anno_snpeff2_clinvar_freqs_gwas_2.vcf")
-    )
+    file.path(anotacion_dir, paste0(output_file_name, "anno_snpeff2_clinvar_freqs_gwas_2.vcf"))
   
   post_process_dir <- file.path(output_dir, "post_process_results")
-  
   if(!dir.exists(post_process_dir)){
     dir.create(post_process_dir,recursive = T)
+    print(paste("Directorio creado:", post_process_dir))
+  } else {
+    print(paste("Directorio ya existe:", post_process_dir))
   }
   
   vcf_file <- output_file_anno5
+  print(paste("Archivo VCF a procesar:", vcf_file))
   
-  print(vcf_file)
-    # Leer el VCF y parsear datos
+  # Leer el VCF
+  print("Leyendo archivo VCF...")
   vcf <- readVcf(vcf_file, "hg38")
+  print("Archivo VCF leído exitosamente.")
   
   # Variantes, info y genotipos
+  print("Extrayendo variantes, info y genotipos...")
   variantes_df <- as.data.frame(rowRanges(vcf))
   info_df     <- as.data.frame(info(vcf))
   geno_list   <- geno(vcf)
   geno_df     <- do.call(cbind, lapply(geno_list, as.data.frame))
-  
+  print("Dataframes extraídos.")
+  print("Primeras filas de info_df:")
   print(head(info_df))
-  # --- Extraer ANN: solo primera anotación de cada variante
+  
+  # --- Extraer ANN
+  print("Procesando anotación ANN...")
   info_ann_1 <- info_df %>%
     mutate(
       ANN_single = if_else(is.na(ANN), NA_character_, sub(",.*", "", ANN)),
@@ -1194,70 +1199,46 @@ process_vcf_to_table <- function(folder_fasta,
       .fn = ~ str_replace(.x, "ANN_parts_", "ANN_")
     ) %>%
     select(-ANN_single, -ANN)
-  
   info_con_ann_df <- info_ann_1
+  print("ANN procesado.")
   print(head(info_con_ann_df))
   
   # --- Unir variantes + info + ANN + geno
+  print("Uniendo variantes, info, ANN y genotipos...")
   final_vcf_df <- bind_cols(variantes_df, info_df, info_con_ann_df, geno_df)
-  final_vcf_df$ALT <- lapply(final_vcf_df$ALT, function(x)
-    as.character(x[[1]]))
+  final_vcf_df$ALT <- lapply(final_vcf_df$ALT, function(x) as.character(x[[1]]))
   final_vcf_df <- as.data.frame(lapply(final_vcf_df, as.character))
+  print("Unión de dataframes realizada.")
   
   # --- Eliminar columnas específicas
+  print("Eliminando columnas no deseadas (1ra ronda)...")
   remove_columns <- c(
-    "strand",
-    "FILTER",
-    "BaseQRankSum...14",
-    "ExcessHet...17",
-    "FS...18",
-    "MLEAC...20",
-    "MLEAF...21",
-    "MQ...22",
-    "MQRankSum...23",
-    "NEGATIVE_TRAIN_SITE...24",
-    "POSITIVE_TRAIN_SITE...25",
-    "RAW_MQandDP...27",
-    "ReadPosRankSum...28",
-    "SOR...29",
-    "VQSLOD...30",
-    "culprit...31",
-    "ANN",
-    "HOM"
+    "strand", "FILTER", "BaseQRankSum...14", "ExcessHet...17",
+    "FS...18", "MLEAC...20", "MLEAF...21", "MQ...22", "MQRankSum...23",
+    "NEGATIVE_TRAIN_SITE...24", "POSITIVE_TRAIN_SITE...25", "RAW_MQandDP...27",
+    "ReadPosRankSum...28", "SOR...29", "VQSLOD...30", "culprit...31",
+    "ANN", "HOM"
   )
   busca_exoma <- function(terms, cols)
     unique(unlist(sapply(terms, function(x)
       grep(x, cols, ignore.case = TRUE))))
   final_vcf_df <- final_vcf_df[, -busca_exoma(remove_columns, colnames(final_vcf_df)), drop = FALSE]
+  print("Columnas eliminadas (1ra ronda).")
   
   # --- Columnas dbNSFP y frecuencias
+  print("Extrayendo y limpiando columnas dbNSFP y de frecuencias...")
   cols_dbnsfp <- c(
-    "dbNSFP_rs_dbSNP",
-    "dbNSFP_clinvar_OMIM_id",
-    "dbNSFP_clinvar_MedGen_id",
-    "dbNSFP_HGVSc_snpEff",
-    "dbNSFP_HGVSp_snpEff",
-    "dbNSFP_clinvar_Orphanet_id",
-    "dbNSFP_Reliability_index",
-    "dbNSFP_AlphaMissense_pred",
-    "dbNSFP_SIFT_pred",
-    "dbNSFP_Polyphen2_HVAR_pred",
-    "dbNSFP_MutationTaster_pred",
-    "dbNSFP_Polyphen2_HDIV_pred",
-    "dbNSFP_CADD_phred",
-    "dbNSFP_Uniprot_acc",
+    "dbNSFP_rs_dbSNP", "dbNSFP_clinvar_OMIM_id", "dbNSFP_clinvar_MedGen_id",
+    "dbNSFP_HGVSc_snpEff", "dbNSFP_HGVSp_snpEff", "dbNSFP_clinvar_Orphanet_id",
+    "dbNSFP_Reliability_index", "dbNSFP_AlphaMissense_pred", "dbNSFP_SIFT_pred",
+    "dbNSFP_Polyphen2_HVAR_pred", "dbNSFP_MutationTaster_pred",
+    "dbNSFP_Polyphen2_HDIV_pred", "dbNSFP_CADD_phred", "dbNSFP_Uniprot_acc",
     "dbNSFP_Interpro_domain"
   )
   cols_freqs  <- c(
-    "dbNSFP_1000Gp3_SAS_AF",
-    "dbNSFP_1000Gp3_AFR_AF",
-    "dbNSFP_1000Gp3_EUR_AF",
-    "dbNSFP_1000Gp3_EAS_AF",
-    "dbNSFP_1000Gp3_AF",
-    "dbNSFP_1000Gp3_AMR_AF"
+    "dbNSFP_1000Gp3_SAS_AF", "dbNSFP_1000Gp3_AFR_AF", "dbNSFP_1000Gp3_EUR_AF",
+    "dbNSFP_1000Gp3_EAS_AF", "dbNSFP_1000Gp3_AF", "dbNSFP_1000Gp3_AMR_AF"
   )
-  
-  # Extraer y limpiar dbNSFP
   clean_dbnsfp_cols <- function(df, cols_target, prefix = "dbNSFP_") {
     colnames_base <- sub("\\.\\.\\.[0-9]+$", "", names(df))
     df_unique <- df[, !duplicated(colnames_base)]
@@ -1314,27 +1295,23 @@ process_vcf_to_table <- function(folder_fasta,
     rowMeans(df_num, na.rm = TRUE)
   }
   df_freqs <- mean_freqs_by_row(df_freqs)
+  print("Columnas dbNSFP y frecuencias listas.")
   
-  # --- Quitar columnas intermedias, dbNSFP, freqs
+  # --- Quitar columnas intermedias
+  print("Eliminando columnas intermedias y duplicadas (2da ronda)...")
   temp_Df <- final_vcf_df[, -c(busca_exoma(cols_freqs, colnames(final_vcf_df)),
                                busca_exoma(cols_dbnsfp, colnames(final_vcf_df)))]
   other_columns <- c(
-    "END...16",
-    "InbreedingCoeff...19",
-    "SNP...36",
-    "INS...38",
-    "DEL...39",
-    "MC...62",
-    "AF_EXAC...68",
-    "AF_ESP...70",
-    "AF_TGP...75",
-    "GWASCAT_TRAIT...107"
+    "END...16", "InbreedingCoeff...19", "SNP...36", "INS...38", "DEL...39",
+    "MC...62", "AF_EXAC...68", "AF_ESP...70", "AF_TGP...75", "GWASCAT_TRAIT...107"
   )
   temp_Df <- temp_Df[, !colnames(temp_Df) %in% other_columns, drop = FALSE]
   temp_Df <- temp_Df[, -grep("^dbNSFP", colnames(temp_Df)), drop = FALSE]
   temp_Df <- temp_Df[, -grep("GWASCAT", colnames(temp_Df)), drop = FALSE]
+  print("Columnas intermedias y duplicadas eliminadas.")
   
   # --- Renombrar y eliminar duplicados con sufijos
+  print("Renombrando columnas y eliminando sufijos repetidos...")
   remove_col_suffix_duplicates_and_rename <- function(df) {
     original_names <- names(df)
     is_x1 <- grepl("^X1", original_names)
@@ -1354,8 +1331,10 @@ process_vcf_to_table <- function(folder_fasta,
     df_final
   }
   temp_Df.tmp <- remove_col_suffix_duplicates_and_rename(temp_Df)
+  print("Columnas renombradas.")
   
   # --- Pasar vectores tipo c(1,2) a "1|2"
+  print("Procesando vectores a formato pipe (|)...")
   process_pipe_vector <- function(df) {
     df[] <- lapply(df, as.character)
     process_cell <- function(cell) {
@@ -1374,38 +1353,23 @@ process_vcf_to_table <- function(folder_fasta,
     df
   }
   df_out <- process_pipe_vector(temp_Df.tmp)
+  print("Vectores convertidos.")
   
   # --- Quitar columnas finales
+  print("Eliminando columnas finales (3ra ronda)...")
   colnames_to_remove <- c(
-    "BaseQRankSum",
-    "ExcessHet",
-    "END",
-    "FS",
-    "InbreedingCoeff",
-    "MLEAC",
-    "MLEAF",
-    "MQ",
-    "MQRankSum",
-    "NEGATIVE_TRAIN_SITE",
-    "POSITIVE_TRAIN_SITE",
-    "RAW_MQandDP",
-    "ReadPosRankSum",
-    "SOR",
-    "VQSLOD",
-    "culprit",
-    "SNP",
-    "INS",
-    "DEL",
-    "MC",
-    "AF_EXAC",
-    "AF_ESP",
-    "AF_TGP"
+    "BaseQRankSum", "ExcessHet", "END", "FS", "InbreedingCoeff", "MLEAC", "MLEAF",
+    "MQ", "MQRankSum", "NEGATIVE_TRAIN_SITE", "POSITIVE_TRAIN_SITE", "RAW_MQandDP",
+    "ReadPosRankSum", "SOR", "VQSLOD", "culprit", "SNP", "INS", "DEL", "MC",
+    "AF_EXAC", "AF_ESP", "AF_TGP"
   )
   df_out <- df_out[, !colnames(df_out) %in% colnames_to_remove, drop = FALSE]
   equis <- df_out[, grep("^X1", colnames(df_out)), drop = FALSE]
   df_to_modify <- df_out[, -grep("^X1", colnames(df_out)), drop = FALSE]
+  print("Columnas finales eliminadas.")
   
   # --- Conservar columna con más info entre duplicadas
+  print("Conservando columnas con mayor información (si hay duplicadas)...")
   conservar_mas_informacion <- function(df) {
     nombres_base <- sub("_[0-9]+$", "", names(df))
     cols_a_conservar <- character(0)
@@ -1430,35 +1394,26 @@ process_vcf_to_table <- function(folder_fasta,
   final$freqs <- df_freqs
   final <- bind_cols(final, df_dbnsfp)
   final <- final[, -grep("^RS_1$", colnames(final)), drop = FALSE]
+  print("Columnas con mayor información conservadas.")
   
   # --- ANN columnas
+  print("Procesando columnas ANN...")
   ann_cols <- info_con_ann_df[, grep("^ANN_\\d+$", names(info_con_ann_df), value = TRUE), drop = FALSE]
   colnames(ann_cols) <- c(
-    "alterno_quitar",
-    "effect",
-    "impact",
-    "gene_name",
-    "gene_name_quitar",
-    "effect_quitar",
-    "annotation_id",
-    "gene_biotype",
-    "exon_intron_rank",
-    "nt_change",
-    "aa_change",
-    "cDNA_position.cDNA_len",
-    "nt_position",
-    "aa_position",
-    "distance_to_feature",
+    "alterno_quitar", "effect", "impact", "gene_name", "gene_name_quitar",
+    "effect_quitar", "annotation_id", "gene_biotype", "exon_intron_rank", "nt_change",
+    "aa_change", "cDNA_position.cDNA_len", "nt_position", "aa_position", "distance_to_feature",
     "errors"
   )[1:ncol(ann_cols)]
   ann_cols <- ann_cols[, !grepl("quitar", colnames(ann_cols)), drop = FALSE]
   final <- bind_cols(final, ann_cols)
+  print("Columnas ANN procesadas.")
   
   # --- Nombres y orden final
+  print("Reordenando y renombrando columnas finales...")
   colnames(final)[1:3] <- c("CHROM", "START", "END")
   if ("HET_1" %in% colnames(final))
     final$HET_1 <- ifelse(final$HET_1 == T, "Het", "Hom")
-  
   quitar_col_repetidas_y_sufijo <- function(df) {
     base_names <- sub("_[0-9]+$", "", names(df))
     cols_a_conservar <- c()
@@ -1487,146 +1442,55 @@ process_vcf_to_table <- function(folder_fasta,
   df_limpio <- quitar_col_repetidas_y_sufijo(final)
   
   orden_columnas <- c(
-    "CHROM",
-    "START",
-    "END",
-    "width",
-    "paramRangeID",
-    "REF",
-    "ALT",
-    "QUAL",
-    "GT",
-    "AD",
-    "DP",
-    "GQ",
-    "MIN_DP",
-    "PGT",
-    "PID",
-    "PL",
-    "PS",
-    "RGQ",
-    "freqs",
-    "AC_1",
-    "AF_1",
-    "AN_1",
-    "DP_1",
-    "QD_1",
-    "LOF_1",
-    "NMD_1",
-    "VARTYPE_1",
-    "MNP_1",
-    "MIXED_1",
-    "HET_1",
-    "DBVARID_1",
-    "SCISCV_1",
-    "ALLELEID_1",
-    "rs_dbSNP",
-    "HGVSc_snpEff",
-    "HGVSp_snpEff",
-    "gene_name",
-    "annotation_id",
-    "gene_biotype",
-    "exon_intron_rank",
-    "nt_change",
-    "aa_change",
-    "cDNA_position.cDNA_len",
-    "nt_position",
-    "aa_position",
-    "distance_to_feature",
-    "CLNSIG_1",
-    "CLNVCSO_1",
-    "SCIDNINCL_1",
-    "CLNREVSTAT_1",
-    "ONCREVSTAT_1",
-    "CLNDNINCL_1",
-    "ONC_1",
-    "CLNSIGSCV_1",
-    "ORIGIN_1",
-    "ONCINCL_1",
-    "ONCDNINCL_1",
-    "ONCDISDB_1",
-    "SCIREVSTAT_1",
-    "ONCDISDBINCL_1",
-    "ONCSCV_1",
-    "CLNDN_1",
-    "ONCCONF_1",
-    "CLNVC_1",
-    "SCIDISDB_1",
-    "CLNVI_1",
-    "ONCDN_1",
-    "CLNSIGINCL_1",
-    "CLNDISDB_1",
-    "GENEINFO_1",
-    "CLNDISDBINCL_1",
-    "CLNSIGCONF_1",
-    "SCIDISDBINCL_1",
-    "CLNHGVS_1",
-    "SCIINCL_1",
-    "SCIDN_1",
-    "SCI_1",
-    "clinvar_OMIM_id",
-    "clinvar_MedGen_id",
-    "clinvar_Orphanet_id",
-    "Reliability_index",
-    "AlphaMissense_pred",
-    "SIFT_pred",
-    "Polyphen2_HVAR_pred",
-    "MutationTaster_pred",
-    "Polyphen2_HDIV_pred",
-    "CADD_phred",
-    "Uniprot_acc",
-    "Interpro_domain",
-    "effect",
-    "impact",
-    "errors"
+    "CHROM", "START", "END", "width", "paramRangeID", "REF", "ALT", "QUAL", "GT", "AD", "DP",
+    "GQ", "MIN_DP", "PGT", "PID", "PL", "PS", "RGQ", "freqs", "AC_1", "AF_1", "AN_1", "DP_1", "QD_1",
+    "LOF_1", "NMD_1", "VARTYPE_1", "MNP_1", "MIXED_1", "HET_1", "DBVARID_1", "SCISCV_1", "ALLELEID_1",
+    "rs_dbSNP", "HGVSc_snpEff", "HGVSp_snpEff", "gene_name", "annotation_id", "gene_biotype", "exon_intron_rank",
+    "nt_change", "aa_change", "cDNA_position.cDNA_len", "nt_position", "aa_position", "distance_to_feature",
+    "CLNSIG_1", "CLNVCSO_1", "SCIDNINCL_1", "CLNREVSTAT_1", "ONCREVSTAT_1", "CLNDNINCL_1", "ONC_1",
+    "CLNSIGSCV_1", "ORIGIN_1", "ONCINCL_1", "ONCDNINCL_1", "ONCDISDB_1", "SCIREVSTAT_1", "ONCDISDBINCL_1",
+    "ONCSCV_1", "CLNDN_1", "ONCCONF_1", "CLNVC_1", "SCIDISDB_1", "CLNVI_1", "ONCDN_1", "CLNSIGINCL_1",
+    "CLNDISDB_1", "GENEINFO_1", "CLNDISDBINCL_1", "CLNSIGCONF_1", "SCIDISDBINCL_1", "CLNHGVS_1", "SCIINCL_1",
+    "SCIDN_1", "SCI_1", "clinvar_OMIM_id", "clinvar_MedGen_id", "clinvar_Orphanet_id", "Reliability_index",
+    "AlphaMissense_pred", "SIFT_pred", "Polyphen2_HVAR_pred", "MutationTaster_pred", "Polyphen2_HDIV_pred",
+    "CADD_phred", "Uniprot_acc", "Interpro_domain", "effect", "impact", "errors"
   )
   df_limpio <- df_limpio[, orden_columnas[orden_columnas %in% names(df_limpio)], drop = FALSE]
   names(df_limpio) <- sub("_1$", "", names(df_limpio))
   df_limpio <- df_limpio[, names(df_limpio) != "DP.1", drop = FALSE]
+  print("Columnas finales reordenadas y renombradas.")
   
-  # --- Guardar como CSV u otro formato
-  # write.csv(df_limpio, file = output_file, row.names = FALSE, na = "")
-  #
-  # invisible(df_limpio)
+  # --- Limpieza y formateo final
+  print("Limpieza y filtrado final de errores y formatos...")
   df_limpio <- df_limpio %>%
     mutate(
-      # Elimina comillas, barras, espacios al inicio/final
       errors = gsub('["\'\\\\]', '', errors),
       errors = trimws(errors)
     ) %>%
-    filter(is.na(errors) |
-             errors == "" | errors == "INFO_REALIGN_3_PRIME")
-  df_limpio$AD <- sapply(df_limpio$AD, function(x)
-    paste(x, collapse = "|"))
-  
+    filter(is.na(errors) | errors == "" | errors == "INFO_REALIGN_3_PRIME")
+  df_limpio$AD <- sapply(df_limpio$AD, function(x) paste(x, collapse = "|"))
   df_limpio$PL <- sapply(df_limpio$PL, function(x)
-    if (all(is.na(x)))
-      NA_character_
-    else
-      paste(x, collapse = "|"))
-  
+    if (all(is.na(x))) NA_character_ else paste(x, collapse = "|"))
   df_limpio <- bind_cols(SAMPLE = muestra, df_limpio)
   
+  print("Primeras filas del dataframe final antes de overlap:")
   print(head(df_limpio))
   
+  # --- Overlap con exoma
+  print("Aplicando overlap con regiones de exoma...")
   bd_list_ <- readRDS(db)
   cromosomas_ <- c(paste0("chr", 1:22), "chrX", "chrY", "chrM")
-  
   df_limpio <- obtener_exoma_overlap(
     bd_list = bd_list_,
     exoma_df = df_limpio,
     cromosomas = cromosomas_,
     muestra = muestra
   )
+  print("Overlap con exoma realizado.")
   
-  # write.csv(df_limpio, file = output_file, row.names = FALSE, na = "")
-  
-  
-  
+  print("=== Proceso COMPLETO: process_vcf_to_table ===")
   return(df_limpio)
 }
-
-
 
 
 
