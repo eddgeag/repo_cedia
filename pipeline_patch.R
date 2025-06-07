@@ -1397,14 +1397,17 @@ process_vcf_to_table <- function(folder_fasta,
   print("Columnas con mayor información conservadas.")
   
   # --- ANN columnas
-  print("Procesando columnas ANN...")
+  print("Procesando columnas ANN...1")
   ann_cols <- info_con_ann_df[, grep("^ANN_\\d+$", names(info_con_ann_df), value = TRUE), drop = FALSE]
+    print("Procesando columnas ANN...2")
   colnames(ann_cols) <- c(
     "alterno_quitar", "effect", "impact", "gene_name", "gene_name_quitar",
     "effect_quitar", "annotation_id", "gene_biotype", "exon_intron_rank", "nt_change",
     "aa_change", "cDNA_position.cDNA_len", "nt_position", "aa_position", "distance_to_feature",
     "errors"
   )[1:ncol(ann_cols)]
+  
+    print("Procesando columnas ANN... 3")
   ann_cols <- ann_cols[, !grepl("quitar", colnames(ann_cols)), drop = FALSE]
   final <- bind_cols(final, ann_cols)
   print("Columnas ANN procesadas.")
