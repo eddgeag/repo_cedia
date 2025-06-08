@@ -1044,38 +1044,45 @@ anotation <-
 
 obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   # 1) Unir bd_list en un solo data.frame, convirtiendo todo a caracteres y filtrando cromosomas
+  cat("\nCheckpoint 1: Uniendo bd_list. Cols bd_list[[1]]:", paste(names(bd_list[[1]]), collapse = ", "), "\n")
+  
   bd_combined <-
     lapply(bd_list, function(x) {
       df <- as.data.frame(lapply(x, as.character), stringsAsFactors = FALSE)
       df[df$Chr %in% cromosomas, ]
     }) %>%
     bind_rows()
+  cat("Checkpoint 2: bd_combined columns:", paste(names(bd_combined), collapse = ", "), "\n")
+  
+  # *** Aquí verifica la existencia de Gene.refGene ***
+  if (!"Gene.refGene" %in% names(bd_combined)) {
+    stop("La columna 'Gene.refGene' NO existe. Las columnas disponibles son:\n", 
+         paste(names(bd_combined), collapse = ", "))
+  }
   
   # 2) Agrupar por Chr, Start, End, Gene.refGene; concatenar "codigo" y contar N
   bd_grouped <- bd_combined %>%
     group_by(Chr, Start, End, Gene.refGene) %>%
     summarise(
-      # n es solo para referencia; realmente usaremos N más adelante
       n = n(),
       paste_m = toString(codigo),
       .groups = "drop"
     ) %>%
     mutate(
-      # Unificar valores de "codigo" en una sola cadena de valores únicos separados por ","
-      paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v) {
-        paste(unique(v), collapse = ",")
-      }),
-      # Calcular N = número de muestras distintas
+      paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v) paste(unique(v), collapse = ",")),
       N = sapply(strsplit(paste_m, ","), length)
     ) %>%
     rename(gene_name = Gene.refGene)
+  cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", "), "\n")
   
   # 3) Filtrar únicamente las filas que contienen la muestra de interés
   bd_filtrado_muestra <- bd_grouped[grep(muestra, bd_grouped$paste_m), ]
+  cat("Checkpoint 4: Filtrado muestra. Rows:", nrow(bd_filtrado_muestra), "\n")
   
   # 4) Asegurar que Start y End sean numéricos
   bd_filtrado_muestra <- bd_filtrado_muestra %>%
     mutate(Start = as.numeric(Start), End   = as.numeric(End))
+  cat("Checkpoint 5: bd_filtrado_muestra columns:", paste(names(bd_filtrado_muestra), collapse = ", "), "\n")
   
   # 5) Crear objeto GRanges a partir de bd_filtrado_muestra
   gr_bd <- makeGRangesFromDataFrame(
@@ -1097,6 +1104,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
     end.field          = "END",
     keep.extra.columns = TRUE
   )
+  cat("Checkpoint 6: GRanges creados\n")
   
   # 7) Encontrar solapamientos
   hits <- findOverlaps(gr_bd, gr_exoma)
@@ -1109,12 +1117,9 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   df_bd_hits    <- as.data.frame(gr_bd_hits)
   df_exoma_hits <- as.data.frame(gr_exoma_hits)
   
-  #    Metadatos de bd (gene_name, N, paste_m)
   bd_meta <- mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")]
-  #    Metadatos de exoma (todas las columnas extra que tenga exoma_df)
   exoma_meta <- mcols(gr_exoma_hits)
   
-  # 10) Construir data.frame combinado
   resultados <- data.frame(
     CHROM     = seqnames(gr_bd_hits) %>% as.character(),
     Start     = start(gr_bd_hits),
@@ -1125,25 +1130,20 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
     exoma_meta,
     stringsAsFactors = FALSE
   )
+  cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
   
-  # 11) Eliminar duplicados según combinación gene_name, Start, End, CHROM
   resultados_unicos <- resultados[!duplicated(resultados[, c("gene_name", "Start", "End", "CHROM")]), ]
-  
-  # 12) Recalcular N a partir de la columna “samples”, por si acaso
   resultados_unicos$N <- sapply(strsplit(resultados_unicos$samples, ","), length)
-  
-  # 13) Renombrar columnas Start → POS y End → END para conservar conveniencia
   colnames(resultados_unicos)[colnames(resultados_unicos) == "Start"]   <- "POS"
   colnames(resultados_unicos)[colnames(resultados_unicos) == "End"]     <- "END"
   
-  # 14) Reordenar columnas: CHROM, POS, END, gene_name, N, samples, (resto de metadatos de exoma)
   primeros <- c("CHROM", "POS", "END", "gene_name", "N", "samples")
   restantes <- setdiff(names(resultados_unicos), primeros)
   bd_exoma_overlap <- resultados_unicos[, c(primeros, restantes)]
+  cat("Checkpoint 8: bd_exoma_overlap columns:", paste(names(bd_exoma_overlap), collapse = ", "), "\n")
   
   return(bd_exoma_overlap)
 }
-
 
 process_vcf_to_table <- function(folder_fasta,
                                  output_dir,
