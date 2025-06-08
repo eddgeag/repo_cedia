@@ -1061,18 +1061,22 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   }
   
   # 2) Agrupar por Chr, Start, End, Gene.refGene; concatenar "codigo" y contar N
+    
   bd_grouped <- bd_combined %>%
-    group_by(Chr, Start, End, Gene.refGene) %>%
-    summarise(
-      n = n(),
-      paste_m = toString(codigo),
-      .groups = "drop"
-    ) %>%
-    mutate(
-      paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v) paste(unique(v), collapse = ",")),
-      N = sapply(strsplit(paste_m, ","), length)
-    ) %>%
-    rename(gene_name = Gene.refGene)
+  group_by(Chr, Start, End, Gene.refGene) %>%
+  summarise(
+    n = n(),
+    gene_name = first(Gene.refGene), # Aquí
+    paste_m = toString(codigo),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v) paste(unique(v), collapse = ",")),
+    N = sapply(strsplit(paste_m, ","), length)
+  )
+# Ya no necesitas rename(gene_name = Gene.refGene)
+cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", "), "\n")
+
   cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", "), "\n")
   
   # 3) Filtrar únicamente las filas que contienen la muestra de interés
