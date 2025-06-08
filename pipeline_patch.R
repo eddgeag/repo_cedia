@@ -1243,7 +1243,7 @@ process_vcf_to_table <- function(folder_fasta,
     colnames_base <- sub("\\.\\.\\.[0-9]+$", "", names(df))
     df_unique <- df[, !duplicated(colnames_base)]
     names(df_unique) <- sub("\\.\\.\\.[0-9]+$", "", names(df_unique))
-    df_final <- df_unique %>% select(any_of(cols_target))
+    df_final <- df_unique %>% dplyr::select(any_of(cols_target))
     names(df_final) <- sub(paste0("^", prefix), "", names(df_final))
     return(df_final)
   }
