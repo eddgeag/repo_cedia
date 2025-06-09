@@ -1066,7 +1066,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   group_by(Chr, Start, End, Gene.refGene) %>%
   summarise(
     n = n(),
-    gene_name = first(Gene.refGene), # Aquí
+    gene_name = dplyr::first(Gene.refGene), # Aquí
     paste_m = toString(codigo),
     .groups = "drop"
   ) %>%
