@@ -1099,7 +1099,7 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
   
   # 6) Convertir exoma_df a GRanges (asegurar POS y END como numéricos)
   exoma_numeric <- exoma_df %>%
-    mutate(POS = as.numeric(POS), END = as.numeric(END))
+    mutate(POS = as.numeric(START), END = as.numeric(END))
   
   gr_exoma <- makeGRangesFromDataFrame(
     exoma_numeric,
