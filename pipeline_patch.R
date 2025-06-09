@@ -1124,18 +1124,17 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
   bd_meta <- mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")]
   exoma_meta <- mcols(gr_exoma_hits)
   
-  resultados <- data.frame(
-    CHROM     = seqnames(gr_bd_hits) %>% as.character(),
-    Start     = start(gr_bd_hits),
-    End       = end(gr_bd_hits),
-    gene_name = bd_meta$gene_name,
-    N         = bd_meta$N,
-    samples   = bd_meta$paste_m,
-    exoma_meta,
-    stringsAsFactors = FALSE,
-    row.names = NULL   # Esto es clave
-
-  )
+  resultados <- resultados <- tibble(
+  CHROM     = as.character(seqnames(gr_bd_hits)),
+  Start     = start(gr_bd_hits),
+  End       = end(gr_bd_hits),
+  gene_name = bd_meta$gene_name,
+  N         = bd_meta$N,
+  samples   = bd_meta$paste_m,
+  !!!exoma_meta  # si exoma_meta es lista o data.frame con columnas
+		)
+		
+  resultados <- as.data.frame(resultados)
   cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
   
   resultados_unicos <- resultados[!duplicated(resultados[, c("gene_name", "Start", "End", "CHROM")]), ]
