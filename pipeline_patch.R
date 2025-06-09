@@ -1132,7 +1132,9 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
     N         = bd_meta$N,
     samples   = bd_meta$paste_m,
     exoma_meta,
-    stringsAsFactors = FALSE
+    stringsAsFactors = FALSE,
+    row.names = NULL   # Esto es clave
+
   )
   cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
   
