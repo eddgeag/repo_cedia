@@ -15,7 +15,8 @@ load.libs <- c(
   "VariantAnnotation",
   "tibble",
   "stringr",
-  "GenomicRanges"
+  "GenomicRanges",
+  "S4Vectors"
 )
 
 lapply(load.libs, require, character.only = TRUE)
@@ -1108,36 +1109,53 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
     end.field          = "END",
     keep.extra.columns = TRUE
   )
-  cat("Checkpoint 6: GRanges creados\n")
-  
-  # 7) Encontrar solapamientos
-  hits <- findOverlaps(gr_bd, gr_exoma)
-  
-  # 8) Extraer los GRanges solapados
-  gr_bd_hits    <- gr_bd[queryHits(hits)]
-  gr_exoma_hits <- gr_exoma[subjectHits(hits)]
-  
-  # 9) Extraer metadatos y convertir a data.frames
-  df_bd_hits    <- as.data.frame(gr_bd_hits)
-  df_exoma_hits <- as.data.frame(gr_exoma_hits)
-  
-  bd_meta <- mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")]
-  exoma_meta <- mcols(gr_exoma_hits)
-  rownames(exoma_meta) <- NULL
-  exoma_meta <- as_tibble(exoma_meta)
-  resultados <- tibble(
+
+cat("Checkpoint 6: GRanges creados\n")
+
+# 7) Encontrar solapamientos
+hits <- findOverlaps(gr_bd, gr_exoma)
+
+# 8) Extraer los GRanges solapados
+gr_bd_hits    <- gr_bd[queryHits(hits)]
+gr_exoma_hits <- gr_exoma[subjectHits(hits)]
+
+# Limpiar duplicados en gr_bd_hits
+id_ranges_bd <- paste0(seqnames(gr_bd_hits), ":", start(gr_bd_hits), "-", end(gr_bd_hits))
+duplicados_bd <- duplicated(id_ranges_bd)
+cat("Duplicados en gr_bd_hits:", sum(duplicados_bd), "\n")
+gr_bd_hits <- gr_bd_hits[!duplicados_bd]
+
+# Hacer únicos los nombres de gr_bd_hits para evitar problemas con rownames
+names(gr_bd_hits) <- makeUnique(paste0(seqnames(gr_bd_hits), "_", start(gr_bd_hits), "_", end(gr_bd_hits)))
+
+# Limpiar duplicados en gr_exoma_hits (opcional, si sospechas que hay)
+id_ranges_exoma <- paste0(seqnames(gr_exoma_hits), ":", start(gr_exoma_hits), "-", end(gr_exoma_hits))
+duplicados_exoma <- duplicated(id_ranges_exoma)
+cat("Duplicados en gr_exoma_hits:", sum(duplicados_exoma), "\n")
+gr_exoma_hits <- gr_exoma_hits[!duplicados_exoma]
+names(gr_exoma_hits) <- makeUnique(paste0(seqnames(gr_exoma_hits), "_", start(gr_exoma_hits), "_", end(gr_exoma_hits)))
+
+# 9) Extraer metadatos y convertir a tibbles sin rownames problemáticos
+bd_meta <- as_tibble(mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")])
+exoma_meta <- as_tibble(mcols(gr_exoma_hits))
+
+# 10) Construir el tibble resultados asegurando que todas las longitudes coincidan
+stopifnot(length(gr_bd_hits) == nrow(bd_meta))
+stopifnot(length(gr_exoma_hits) == nrow(exoma_meta))
+
+resultados <- tibble(
   CHROM     = as.character(seqnames(gr_bd_hits)),
   Start     = start(gr_bd_hits),
   End       = end(gr_bd_hits),
   gene_name = bd_meta$gene_name,
   N         = bd_meta$N,
   samples   = bd_meta$paste_m,
-  !!!exoma_meta  # si exoma_meta es lista o data.frame con columnas
-		)
-		
-  resultados <- as.data.frame(resultados)
-  cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
-  
+  !!!exoma_meta
+)
+
+resultados <- as.data.frame(resultados)
+
+cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
   resultados_unicos <- resultados[!duplicated(resultados[, c("gene_name", "Start", "End", "CHROM")]), ]
   resultados_unicos$N <- sapply(strsplit(resultados_unicos$samples, ","), length)
   colnames(resultados_unicos)[colnames(resultados_unicos) == "Start"]   <- "POS"
