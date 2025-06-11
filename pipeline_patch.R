@@ -1123,8 +1123,9 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
   
   bd_meta <- mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")]
   exoma_meta <- mcols(gr_exoma_hits)
-  
-  resultados <- resultados <- tibble(
+  rownames(exoma_meta) <- NULL
+  exoma_meta <- as_tibble(exoma_meta)
+  resultados <- tibble(
   CHROM     = as.character(seqnames(gr_bd_hits)),
   Start     = start(gr_bd_hits),
   End       = end(gr_bd_hits),
@@ -1497,7 +1498,6 @@ process_vcf_to_table <- function(folder_fasta,
   print("Overlap con exoma realizado.")
   
   print("=== Proceso COMPLETO: process_vcf_to_table ===")
-  write.csv(df_limpio,"./df_limpio.csv")
   return(df_limpio)
 }
 
