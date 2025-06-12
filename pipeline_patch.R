@@ -1115,34 +1115,33 @@ cat("Checkpoint 6: GRanges creados\n")
 # 7) Encontrar solapamientos
 hits <- findOverlaps(gr_bd, gr_exoma)
 
-# 8) Extraer los GRanges solapados
-gr_bd_hits    <- gr_bd[queryHits(hits)]
-gr_exoma_hits <- gr_exoma[subjectHits(hits)]
+# 8) Crear data.frame de hits con identificadores únicos para detectar duplicados
+query_ids <- paste0(seqnames(gr_bd)[queryHits(hits)], ":", start(gr_bd)[queryHits(hits)], "-", end(gr_bd)[queryHits(hits)])
+subject_ids <- paste0(seqnames(gr_exoma)[subjectHits(hits)], ":", start(gr_exoma)[subjectHits(hits)], "-", end(gr_exoma)[subjectHits(hits)])
 
-# Limpiar duplicados en gr_bd_hits
-id_ranges_bd <- paste0(seqnames(gr_bd_hits), ":", start(gr_bd_hits), "-", end(gr_bd_hits))
-duplicados_bd <- duplicated(id_ranges_bd)
-cat("Duplicados en gr_bd_hits:", sum(duplicados_bd), "\n")
-gr_bd_hits <- gr_bd_hits[!duplicados_bd]
+hits_df <- data.frame(
+  query = queryHits(hits),
+  subject = subjectHits(hits),
+  query_id = query_ids,
+  subject_id = subject_ids,
+  stringsAsFactors = FALSE
+)
 
-# Hacer únicos los nombres de gr_bd_hits para evitar problemas con rownames
-names(gr_bd_hits) <- makeUnique(paste0(seqnames(gr_bd_hits), "_", start(gr_bd_hits), "_", end(gr_bd_hits)))
+# 9) Eliminar duplicados en los pares query-subject para mantener correspondencia 1 a 1
+# Puedes decidir qué criterio usar para duplicados, aquí eliminamos duplicados en query_id + subject_id
+hits_df_unique <- hits_df[!duplicated(paste0(hits_df$query_id, "_", hits_df$subject_id)), ]
 
-# Limpiar duplicados en gr_exoma_hits (opcional, si sospechas que hay)
-id_ranges_exoma <- paste0(seqnames(gr_exoma_hits), ":", start(gr_exoma_hits), "-", end(gr_exoma_hits))
-duplicados_exoma <- duplicated(id_ranges_exoma)
-cat("Duplicados en gr_exoma_hits:", sum(duplicados_exoma), "\n")
-gr_exoma_hits <- gr_exoma_hits[!duplicados_exoma]
-names(gr_exoma_hits) <- makeUnique(paste0(seqnames(gr_exoma_hits), "_", start(gr_exoma_hits), "_", end(gr_exoma_hits)))
+cat("Duplicados eliminados en hits:", nrow(hits_df) - nrow(hits_df_unique), "\n")
 
-# 9) Extraer metadatos y convertir a tibbles sin rownames problemáticos
+# 10) Extraer granges filtrados según hits únicos
+gr_bd_hits    <- gr_bd[hits_df_unique$query]
+gr_exoma_hits <- gr_exoma[hits_df_unique$subject]
+
+# 11) Extraer metadatos para gr_bd_hits y gr_exoma_hits
 bd_meta <- as_tibble(mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")])
 exoma_meta <- as_tibble(mcols(gr_exoma_hits))
 
-# 10) Construir el tibble resultados asegurando que todas las longitudes coincidan
-stopifnot(length(gr_bd_hits) == nrow(bd_meta))
-stopifnot(length(gr_exoma_hits) == nrow(exoma_meta))
-
+# 12) Construir tibble resultados
 resultados <- tibble(
   CHROM     = as.character(seqnames(gr_bd_hits)),
   Start     = start(gr_bd_hits),
