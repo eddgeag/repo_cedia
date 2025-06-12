@@ -1514,7 +1514,8 @@ process_vcf_to_table <- function(folder_fasta,
   print("Overlap con exoma realizado.")
   
   print("=== Proceso COMPLETO: process_vcf_to_table ===")
-  return(df_limpio)
+  write.csv(df_limpio,"./df_limpio.csv")
+  #return(df_limpio)
 }
 
 
