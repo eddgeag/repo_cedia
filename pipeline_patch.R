@@ -1146,7 +1146,6 @@ resultados <- tibble(
   CHROM     = as.character(seqnames(gr_bd_hits)),
   Start     = start(gr_bd_hits),
   End       = end(gr_bd_hits),
-  gene_name = bd_meta$gene_name,
   N         = bd_meta$N,
   samples   = bd_meta$paste_m,
   !!!exoma_meta
