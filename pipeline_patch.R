@@ -1493,7 +1493,7 @@ process_vcf_to_table <- function(folder_fasta,
   print(w)
   length(w)
   
-  df_limpio <- df_limpio[,w]
+  #df_limpio <- df_limpio[,w]
   
   print(colnames(df_limpio))
   print(orden_columnas)
