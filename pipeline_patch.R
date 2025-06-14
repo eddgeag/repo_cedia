@@ -1489,7 +1489,7 @@ process_vcf_to_table <- function(folder_fasta,
   print(length(orden_columnas))
   print(orden_columnas)
   print(length(colnames(df_limpio)))
-  w <- which(colnames(df_limpio) %in% orden_columnas))
+  w <- which(colnames(df_limpio) %in% orden_columnas)
   print(w)
   length(w)
   
