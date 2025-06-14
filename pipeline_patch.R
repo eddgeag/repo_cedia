@@ -1480,7 +1480,10 @@ process_vcf_to_table <- function(folder_fasta,
     "AlphaMissense_pred", "SIFT_pred", "Polyphen2_HVAR_pred", "MutationTaster_pred", "Polyphen2_HDIV_pred",
     "CADD_phred", "Uniprot_acc", "Interpro_domain", "effect", "impact", "errors"
   )
-  df_limpio <- df_limpio[, orden_columnas[orden_columnas %in% names(df_limpio)], drop = FALSE]
+  
+  
+  #df_limpio <- df_limpio[, orden_columnas[orden_columnas %in% names(df_limpio)], drop = FALSE]
+  df_limpio <- df_limpio[,orden_columnas]
   names(df_limpio) <- sub("_1$", "", names(df_limpio))
   df_limpio <- df_limpio[, names(df_limpio) != "DP.1", drop = FALSE]
   print("Columnas finales reordenadas y renombradas.")
