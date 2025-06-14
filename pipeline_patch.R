@@ -1483,7 +1483,20 @@ process_vcf_to_table <- function(folder_fasta,
   
   
   #df_limpio <- df_limpio[, orden_columnas[orden_columnas %in% names(df_limpio)], drop = FALSE]
-  df_limpio <- df_limpio[,orden_columnas]
+  print("#### columnas df_limpio ########")
+  print(colnames(df_limpio))
+  print("#### ahora vemos cuales de orden_columnas estan en df_limpio ###")
+  print(length(orden_columnas))
+  print(orden_columnas)
+  print(length(colnames(df_limpio)))
+  w <- which(colnames(df_limpio) %in% orden_columnas))
+  print(w)
+  length(w)
+  
+  df_limpio <- df_limpio[,w]
+  
+  print(colnames(df_limpio))
+  print(orden_columnas)
   names(df_limpio) <- sub("_1$", "", names(df_limpio))
   df_limpio <- df_limpio[, names(df_limpio) != "DP.1", drop = FALSE]
   print("Columnas finales reordenadas y renombradas.")
@@ -1508,14 +1521,15 @@ process_vcf_to_table <- function(folder_fasta,
   print("Aplicando overlap con regiones de exoma...")
   bd_list_ <- readRDS(db)
   cromosomas_ <- c(paste0("chr", 1:22), "chrX", "chrY", "chrM")
+  
   df_limpio <- obtener_exoma_overlap(
     bd_list = bd_list_,
     exoma_df = df_limpio,
     cromosomas = cromosomas_,
     muestra = muestra
   )
-  print("Overlap con exoma realizado.")
   
+  print("Overlap con exoma realizado.")
   print("=== Proceso COMPLETO: process_vcf_to_table ===")
   write.csv(df_limpio,"./df_limpio.csv")
   #return(df_limpio)
