@@ -32,21 +32,11 @@ cut -f1,2 "$FAI" > "$CHROMSIZES"
 # 3. bed_split.bed
 awk '{printf("%s\t0\t%s\n",$1,$2);}' "$CHROMSIZES" > "$BEDSPLIT"
 
-# 4. out.bam (solo si NO existe)
-if [ ! -f "$OUTBAM" ]; then
-    echo "Extrayendo regiones del BAM..."
-    samtools view -b -h -L "$BEDSPLIT" "$BAM" > "$OUTBAM"
-else
-    echo "Ya existe $OUTBAM, saltando extracción."
-fi
+samtools view -b -h -L "$BEDSPLIT" "$BAM" > "$OUTBAM"
 
-# 5. myfile_sorted.bam (solo si NO existe)
-if [ ! -f "$SORTBAM" ]; then
-    echo "Ordenando BAM..."
-    samtools sort -@ 16 -T temp_sort -o "$SORTBAM" "$OUTBAM"
-else
-    echo "Ya existe $SORTBAM, saltando ordenamiento."
-fi
+
+echo "Ordenando BAM..."
+samtools sort -@ 16 -T temp_sort -o "$SORTBAM" "$OUTBAM"
 
 # 6. BED ordenado
 sort -k1,1 -k2,2n -k3,3n "$KIT_BED" > "$KITSORTED"
