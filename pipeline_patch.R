@@ -1038,14 +1038,18 @@ anotation <-
       system(command = comando6, intern = T)
     }
     
-  print("YA ESTA ANOTADO")
+    print("YA ESTA ANOTADO")
     
   }
 
 
 obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   # 1) Unir bd_list en un solo data.frame, convirtiendo todo a caracteres y filtrando cromosomas
-  cat("\nCheckpoint 1: Uniendo bd_list. Cols bd_list[[1]]:", paste(names(bd_list[[1]]), collapse = ", "), "\n")
+  cat(
+    "\nCheckpoint 1: Uniendo bd_list. Cols bd_list[[1]]:",
+    paste(names(bd_list[[1]]), collapse = ", "),
+    "\n"
+  )
   
   bd_combined <-
     lapply(bd_list, function(x) {
@@ -1053,41 +1057,53 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
       df[df$Chr %in% cromosomas, ]
     }) %>%
     bind_rows()
-  cat("Checkpoint 2: bd_combined columns:", paste(names(bd_combined), collapse = ", "), "\n")
+  cat("Checkpoint 2: bd_combined columns:",
+      paste(names(bd_combined), collapse = ", "),
+      "\n")
   
   # *** Aquí verifica la existencia de Gene.refGene ***
   if (!"Gene.refGene" %in% names(bd_combined)) {
-    stop("La columna 'Gene.refGene' NO existe. Las columnas disponibles son:\n", 
-         paste(names(bd_combined), collapse = ", "))
+    stop(
+      "La columna 'Gene.refGene' NO existe. Las columnas disponibles son:\n",
+      paste(names(bd_combined), collapse = ", ")
+    )
   }
   
   # 2) Agrupar por Chr, Start, End, Gene.refGene; concatenar "codigo" y contar N
-    
+  
   bd_grouped <- bd_combined %>%
-  group_by(Chr, Start, End, Gene.refGene) %>%
-  summarise(
-    n = n(),
-    gene_name = dplyr::first(Gene.refGene), # Aquí
-    paste_m = toString(codigo),
-    .groups = "drop"
-  ) %>%
-  mutate(
-    paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v) paste(unique(v), collapse = ",")),
-    N = sapply(strsplit(paste_m, ","), length)
-  )
-# Ya no necesitas rename(gene_name = Gene.refGene)
-cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", "), "\n")
-
-  cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", "), "\n")
+    group_by(Chr, Start, End, Gene.refGene) %>%
+    summarise(
+      n = n(),
+      gene_name = dplyr::first(Gene.refGene),
+      # Aquí
+      paste_m = toString(codigo),
+      .groups = "drop"
+    ) %>%
+    mutate(paste_m = sapply(strsplit(paste_m, ",\\s*"), function(v)
+      paste(unique(v), collapse = ",")),
+      N = sapply(strsplit(paste_m, ","), length))
+  # Ya no necesitas rename(gene_name = Gene.refGene)
+  cat("Checkpoint 3: bd_grouped columns:",
+      paste(names(bd_grouped), collapse = ", "),
+      "\n")
+  
+  cat("Checkpoint 3: bd_grouped columns:",
+      paste(names(bd_grouped), collapse = ", "),
+      "\n")
   
   # 3) Filtrar únicamente las filas que contienen la muestra de interés
   bd_filtrado_muestra <- bd_grouped[grep(muestra, bd_grouped$paste_m), ]
-  cat("Checkpoint 4: Filtrado muestra. Rows:", nrow(bd_filtrado_muestra), "\n")
+  cat("Checkpoint 4: Filtrado muestra. Rows:",
+      nrow(bd_filtrado_muestra),
+      "\n")
   
   # 4) Asegurar que Start y End sean numéricos
   bd_filtrado_muestra <- bd_filtrado_muestra %>%
     mutate(Start = as.numeric(Start), End   = as.numeric(End))
-  cat("Checkpoint 5: bd_filtrado_muestra columns:", paste(names(bd_filtrado_muestra), collapse = ", "), "\n")
+  cat("Checkpoint 5: bd_filtrado_muestra columns:",
+      paste(names(bd_filtrado_muestra), collapse = ", "),
+      "\n")
   
   # 5) Crear objeto GRanges a partir de bd_filtrado_muestra
   gr_bd <- makeGRangesFromDataFrame(
@@ -1109,51 +1125,58 @@ cat("Checkpoint 3: bd_grouped columns:", paste(names(bd_grouped), collapse = ", 
     end.field          = "END",
     keep.extra.columns = TRUE
   )
-
-cat("Checkpoint 6: GRanges creados\n")
-
-# 7) Encontrar solapamientos
-hits <- findOverlaps(gr_bd, gr_exoma)
-
-# 8) Crear data.frame de hits con identificadores únicos para detectar duplicados
-query_ids <- paste0(seqnames(gr_bd)[queryHits(hits)], ":", start(gr_bd)[queryHits(hits)], "-", end(gr_bd)[queryHits(hits)])
-subject_ids <- paste0(seqnames(gr_exoma)[subjectHits(hits)], ":", start(gr_exoma)[subjectHits(hits)], "-", end(gr_exoma)[subjectHits(hits)])
-
-hits_df <- data.frame(
-  query = queryHits(hits),
-  subject = subjectHits(hits),
-  query_id = query_ids,
-  subject_id = subject_ids,
-  stringsAsFactors = FALSE
-)
-
-# 9) Eliminar duplicados en los pares query-subject para mantener correspondencia 1 a 1
-# Puedes decidir qué criterio usar para duplicados, aquí eliminamos duplicados en query_id + subject_id
-hits_df_unique <- hits_df[!duplicated(paste0(hits_df$query_id, "_", hits_df$subject_id)), ]
-
-cat("Duplicados eliminados en hits:", nrow(hits_df) - nrow(hits_df_unique), "\n")
-
-# 10) Extraer granges filtrados según hits únicos
-gr_bd_hits    <- gr_bd[hits_df_unique$query]
-gr_exoma_hits <- gr_exoma[hits_df_unique$subject]
-
-# 11) Extraer metadatos para gr_bd_hits y gr_exoma_hits
-bd_meta <- as_tibble(mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")])
-exoma_meta <- as_tibble(mcols(gr_exoma_hits))
-
-# 12) Construir tibble resultados
-resultados <- tibble(
-  CHROM     = as.character(seqnames(gr_bd_hits)),
-  Start     = start(gr_bd_hits),
-  End       = end(gr_bd_hits),
-  N         = bd_meta$N,
-  samples   = bd_meta$paste_m,
-  !!!exoma_meta
-)
-
-resultados <- as.data.frame(resultados)
-
-cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", "), "\n")
+  
+  cat("Checkpoint 6: GRanges creados\n")
+  
+  # 7) Encontrar solapamientos
+  hits <- findOverlaps(gr_bd, gr_exoma)
+  
+  # 8) Crear data.frame de hits con identificadores únicos para detectar duplicados
+  query_ids <- paste0(seqnames(gr_bd)[queryHits(hits)], ":", start(gr_bd)[queryHits(hits)], "-", end(gr_bd)[queryHits(hits)])
+  subject_ids <- paste0(seqnames(gr_exoma)[subjectHits(hits)],
+                        ":",
+                        start(gr_exoma)[subjectHits(hits)],
+                        "-",
+                        end(gr_exoma)[subjectHits(hits)])
+  
+  hits_df <- data.frame(
+    query = queryHits(hits),
+    subject = subjectHits(hits),
+    query_id = query_ids,
+    subject_id = subject_ids,
+    stringsAsFactors = FALSE
+  )
+  
+  # 9) Eliminar duplicados en los pares query-subject para mantener correspondencia 1 a 1
+  # Puedes decidir qué criterio usar para duplicados, aquí eliminamos duplicados en query_id + subject_id
+  hits_df_unique <- hits_df[!duplicated(paste0(hits_df$query_id, "_", hits_df$subject_id)), ]
+  
+  cat("Duplicados eliminados en hits:",
+      nrow(hits_df) - nrow(hits_df_unique),
+      "\n")
+  
+  # 10) Extraer granges filtrados según hits únicos
+  gr_bd_hits    <- gr_bd[hits_df_unique$query]
+  gr_exoma_hits <- gr_exoma[hits_df_unique$subject]
+  
+  # 11) Extraer metadatos para gr_bd_hits y gr_exoma_hits
+  bd_meta <- as_tibble(mcols(gr_bd_hits)[, c("gene_name", "N", "paste_m")])
+  exoma_meta <- as_tibble(mcols(gr_exoma_hits))
+  
+  # 12) Construir tibble resultados
+  resultados <- tibble(
+    CHROM     = as.character(seqnames(gr_bd_hits)),
+    Start     = start(gr_bd_hits),
+    End       = end(gr_bd_hits),
+    N         = bd_meta$N,
+    samples   = bd_meta$paste_m,!!!exoma_meta
+  )
+  
+  resultados <- as.data.frame(resultados)
+  
+  cat("Checkpoint 7: resultados columns:",
+      paste(names(resultados), collapse = ", "),
+      "\n")
   resultados_unicos <- resultados[!duplicated(resultados[, c("gene_name", "Start", "End", "CHROM")]), ]
   resultados_unicos$N <- sapply(strsplit(resultados_unicos$samples, ","), length)
   colnames(resultados_unicos)[colnames(resultados_unicos) == "Start"]   <- "POS"
@@ -1162,16 +1185,31 @@ cat("Checkpoint 7: resultados columns:", paste(names(resultados), collapse = ", 
   primeros <- c("CHROM", "POS", "END", "gene_name", "N", "samples")
   restantes <- setdiff(names(resultados_unicos), primeros)
   bd_exoma_overlap <- resultados_unicos[, c(primeros, restantes)]
-  cat("Checkpoint 8: bd_exoma_overlap columns:", paste(names(bd_exoma_overlap), collapse = ", "), "\n")
+  cat("Checkpoint 8: bd_exoma_overlap columns:",
+      paste(names(bd_exoma_overlap), collapse = ", "),
+      "\n")
   
   return(bd_exoma_overlap)
 }
+
+buscar_herencia <- function(df) {
+  vector_hpo <- df$hpo  # Vector de la columna "hpo"
+  vector_valores <-
+    strsplit(vector_hpo, ";")  # Separar los valores por el delimitador ";"
+  vector_resultado1 <-
+    sapply(vector_valores, function(x)
+      paste(unique(x[grep("inheritance", ignore.case = T, x = x)]), sep = ",", collapse = ","))
+  X <- bind_cols(herencia = vector_resultado1, df)
+  return(X)
+}
+
 
 process_vcf_to_table <- function(folder_fasta,
                                  output_dir,
                                  fastq_dir,
                                  muestra,
-                                 db) {
+                                 db,
+                                 hpo_file_) {
   print("=== Iniciando process_vcf_to_table ===")
   fastq_files <- list.files(fastq_dir, full.names = F)
   print(paste("FASTQ files encontrados:", paste(fastq_files, collapse = ", ")))
@@ -1180,15 +1218,23 @@ process_vcf_to_table <- function(folder_fasta,
   output_file_name <- file_path_sans_ext(output_file_name)
   anotacion_dir <- file.path(output_dir, "anotation")
   output_file_anno5 <-
-    file.path(anotacion_dir, paste0(output_file_name, "anno_snpeff2_clinvar_freqs_gwas_2.vcf"))
+    file.path(
+      anotacion_dir,
+      paste0(output_file_name, "anno_snpeff2_clinvar_freqs_gwas_2.vcf")
+    )
   
   post_process_dir <- file.path(output_dir, "post_process_results")
-  if(!dir.exists(post_process_dir)){
-    dir.create(post_process_dir,recursive = T)
+  if (!dir.exists(post_process_dir)) {
+    dir.create(post_process_dir, recursive = T)
     print(paste("Directorio creado:", post_process_dir))
   } else {
     print(paste("Directorio ya existe:", post_process_dir))
   }
+  archivo_final <- file.path(post_process_dir, "file_ready_analysis_optimized.csv")
+  
+  if(!file.exists(archivo_final)){
+    
+  
   
   vcf_file <- output_file_anno5
   print(paste("Archivo VCF a procesar:", vcf_file))
@@ -1211,15 +1257,15 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Extraer ANN
   print("Procesando anotación ANN...")
   info_ann_1 <- info_df %>%
-  dplyr::mutate(
-    ANN_single = if_else(is.na(ANN), NA_character_, sub(",.*", "", ANN)),
-    ANN_parts  = stringr::str_split(ANN_single, "\\|")
-  ) %>%
-  tidyr::unnest_wider(col = ANN_parts, names_sep = "_") %>%
-  dplyr::rename_with(
-    .cols = starts_with("ANN_parts_"),
-    .fn = ~ stringr::str_replace(.x, "ANN_parts_", "ANN_")
-  ) %>%   dplyr::select(-ANN_single, -ANN)
+    dplyr::mutate(
+      ANN_single = if_else(is.na(ANN), NA_character_, sub(",.*", "", ANN)),
+      ANN_parts  = stringr::str_split(ANN_single, "\\|")
+    ) %>%
+    tidyr::unnest_wider(col = ANN_parts, names_sep = "_") %>%
+    dplyr::rename_with(
+      .cols = starts_with("ANN_parts_"),
+      .fn = ~ stringr::str_replace(.x, "ANN_parts_", "ANN_")
+    ) %>%   dplyr::select(-ANN_single, -ANN)
   
   info_con_ann_df <- info_ann_1
   print("ANN procesado.")
@@ -1228,18 +1274,32 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Unir variantes + info + ANN + geno
   print("Uniendo variantes, info, ANN y genotipos...")
   final_vcf_df <- bind_cols(variantes_df, info_df, info_con_ann_df, geno_df)
-  final_vcf_df$ALT <- lapply(final_vcf_df$ALT, function(x) as.character(x[[1]]))
+  final_vcf_df$ALT <- lapply(final_vcf_df$ALT, function(x)
+    as.character(x[[1]]))
   final_vcf_df <- as.data.frame(lapply(final_vcf_df, as.character))
   print("Unión de dataframes realizada.")
   
   # --- Eliminar columnas específicas
   print("Eliminando columnas no deseadas (1ra ronda)...")
   remove_columns <- c(
-    "strand", "FILTER", "BaseQRankSum...14", "ExcessHet...17",
-    "FS...18", "MLEAC...20", "MLEAF...21", "MQ...22", "MQRankSum...23",
-    "NEGATIVE_TRAIN_SITE...24", "POSITIVE_TRAIN_SITE...25", "RAW_MQandDP...27",
-    "ReadPosRankSum...28", "SOR...29", "VQSLOD...30", "culprit...31",
-    "ANN", "HOM"
+    "strand",
+    "FILTER",
+    "BaseQRankSum...14",
+    "ExcessHet...17",
+    "FS...18",
+    "MLEAC...20",
+    "MLEAF...21",
+    "MQ...22",
+    "MQRankSum...23",
+    "NEGATIVE_TRAIN_SITE...24",
+    "POSITIVE_TRAIN_SITE...25",
+    "RAW_MQandDP...27",
+    "ReadPosRankSum...28",
+    "SOR...29",
+    "VQSLOD...30",
+    "culprit...31",
+    "ANN",
+    "HOM"
   )
   busca_exoma <- function(terms, cols)
     unique(unlist(sapply(terms, function(x)
@@ -1250,16 +1310,29 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Columnas dbNSFP y frecuencias
   print("Extrayendo y limpiando columnas dbNSFP y de frecuencias...")
   cols_dbnsfp <- c(
-    "dbNSFP_rs_dbSNP", "dbNSFP_clinvar_OMIM_id", "dbNSFP_clinvar_MedGen_id",
-    "dbNSFP_HGVSc_snpEff", "dbNSFP_HGVSp_snpEff", "dbNSFP_clinvar_Orphanet_id",
-    "dbNSFP_Reliability_index", "dbNSFP_AlphaMissense_pred", "dbNSFP_SIFT_pred",
-    "dbNSFP_Polyphen2_HVAR_pred", "dbNSFP_MutationTaster_pred",
-    "dbNSFP_Polyphen2_HDIV_pred", "dbNSFP_CADD_phred", "dbNSFP_Uniprot_acc",
+    "dbNSFP_rs_dbSNP",
+    "dbNSFP_clinvar_OMIM_id",
+    "dbNSFP_clinvar_MedGen_id",
+    "dbNSFP_HGVSc_snpEff",
+    "dbNSFP_HGVSp_snpEff",
+    "dbNSFP_clinvar_Orphanet_id",
+    "dbNSFP_Reliability_index",
+    "dbNSFP_AlphaMissense_pred",
+    "dbNSFP_SIFT_pred",
+    "dbNSFP_Polyphen2_HVAR_pred",
+    "dbNSFP_MutationTaster_pred",
+    "dbNSFP_Polyphen2_HDIV_pred",
+    "dbNSFP_CADD_phred",
+    "dbNSFP_Uniprot_acc",
     "dbNSFP_Interpro_domain"
   )
   cols_freqs  <- c(
-    "dbNSFP_1000Gp3_SAS_AF", "dbNSFP_1000Gp3_AFR_AF", "dbNSFP_1000Gp3_EUR_AF",
-    "dbNSFP_1000Gp3_EAS_AF", "dbNSFP_1000Gp3_AF", "dbNSFP_1000Gp3_AMR_AF"
+    "dbNSFP_1000Gp3_SAS_AF",
+    "dbNSFP_1000Gp3_AFR_AF",
+    "dbNSFP_1000Gp3_EUR_AF",
+    "dbNSFP_1000Gp3_EAS_AF",
+    "dbNSFP_1000Gp3_AF",
+    "dbNSFP_1000Gp3_AMR_AF"
   )
   clean_dbnsfp_cols <- function(df, cols_target, prefix = "dbNSFP_") {
     colnames_base <- sub("\\.\\.\\.[0-9]+$", "", names(df))
@@ -1324,8 +1397,16 @@ process_vcf_to_table <- function(folder_fasta,
   temp_Df <- final_vcf_df[, -c(busca_exoma(cols_freqs, colnames(final_vcf_df)),
                                busca_exoma(cols_dbnsfp, colnames(final_vcf_df)))]
   other_columns <- c(
-    "END...16", "InbreedingCoeff...19", "SNP...36", "INS...38", "DEL...39",
-    "MC...62", "AF_EXAC...68", "AF_ESP...70", "AF_TGP...75", "GWASCAT_TRAIT...107"
+    "END...16",
+    "InbreedingCoeff...19",
+    "SNP...36",
+    "INS...38",
+    "DEL...39",
+    "MC...62",
+    "AF_EXAC...68",
+    "AF_ESP...70",
+    "AF_TGP...75",
+    "GWASCAT_TRAIT...107"
   )
   temp_Df <- temp_Df[, !colnames(temp_Df) %in% other_columns, drop = FALSE]
   temp_Df <- temp_Df[, -grep("^dbNSFP", colnames(temp_Df)), drop = FALSE]
@@ -1380,10 +1461,29 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Quitar columnas finales
   print("Eliminando columnas finales (3ra ronda)...")
   colnames_to_remove <- c(
-    "BaseQRankSum", "ExcessHet", "END", "FS", "InbreedingCoeff", "MLEAC", "MLEAF",
-    "MQ", "MQRankSum", "NEGATIVE_TRAIN_SITE", "POSITIVE_TRAIN_SITE", "RAW_MQandDP",
-    "ReadPosRankSum", "SOR", "VQSLOD", "culprit", "SNP", "INS", "DEL", "MC",
-    "AF_EXAC", "AF_ESP", "AF_TGP"
+    "BaseQRankSum",
+    "ExcessHet",
+    "END",
+    "FS",
+    "InbreedingCoeff",
+    "MLEAC",
+    "MLEAF",
+    "MQ",
+    "MQRankSum",
+    "NEGATIVE_TRAIN_SITE",
+    "POSITIVE_TRAIN_SITE",
+    "RAW_MQandDP",
+    "ReadPosRankSum",
+    "SOR",
+    "VQSLOD",
+    "culprit",
+    "SNP",
+    "INS",
+    "DEL",
+    "MC",
+    "AF_EXAC",
+    "AF_ESP",
+    "AF_TGP"
   )
   df_out <- df_out[, !colnames(df_out) %in% colnames_to_remove, drop = FALSE]
   equis <- df_out[, grep("^X1", colnames(df_out)), drop = FALSE]
@@ -1421,15 +1521,27 @@ process_vcf_to_table <- function(folder_fasta,
   # --- ANN columnas
   print("Procesando columnas ANN...1")
   ann_cols <- info_con_ann_df[, grep("^ANN_\\d+$", names(info_con_ann_df), value = TRUE), drop = FALSE]
-    print("Procesando columnas ANN...2")
+  print("Procesando columnas ANN...2")
   colnames(ann_cols) <- c(
-    "alterno_quitar", "effect", "impact", "gene_name", "gene_name_quitar",
-    "effect_quitar", "annotation_id", "gene_biotype", "exon_intron_rank", "nt_change",
-    "aa_change", "cDNA_position.cDNA_len", "nt_position", "aa_position", "distance_to_feature",
+    "alterno_quitar",
+    "effect",
+    "impact",
+    "gene_name",
+    "gene_name_quitar",
+    "effect_quitar",
+    "annotation_id",
+    "gene_biotype",
+    "exon_intron_rank",
+    "nt_change",
+    "aa_change",
+    "cDNA_position.cDNA_len",
+    "nt_position",
+    "aa_position",
+    "distance_to_feature",
     "errors"
   )[1:ncol(ann_cols)]
   
-    print("Procesando columnas ANN... 3")
+  print("Procesando columnas ANN... 3")
   ann_cols <- ann_cols[, !grepl("quitar", colnames(ann_cols)), drop = FALSE]
   final <- bind_cols(final, ann_cols)
   print("Columnas ANN procesadas.")
@@ -1467,18 +1579,98 @@ process_vcf_to_table <- function(folder_fasta,
   df_limpio <- quitar_col_repetidas_y_sufijo(final)
   
   orden_columnas <- c(
-    "CHROM", "START", "END", "width", "paramRangeID", "REF", "ALT", "QUAL", "GT", "AD", "DP",
-    "GQ", "MIN_DP", "PGT", "PID", "PL", "PS", "RGQ", "freqs", "AC_1", "AF_1", "AN_1", "DP_1", "QD_1",
-    "LOF_1", "NMD_1", "VARTYPE_1", "MNP_1", "MIXED_1", "HET_1", "DBVARID_1", "SCISCV_1", "ALLELEID_1",
-    "rs_dbSNP", "HGVSc_snpEff", "HGVSp_snpEff", "gene_name", "annotation_id", "gene_biotype", "exon_intron_rank",
-    "nt_change", "aa_change", "cDNA_position.cDNA_len", "nt_position", "aa_position", "distance_to_feature",
-    "CLNSIG_1", "CLNVCSO_1", "SCIDNINCL_1", "CLNREVSTAT_1", "ONCREVSTAT_1", "CLNDNINCL_1", "ONC_1",
-    "CLNSIGSCV_1", "ORIGIN_1", "ONCINCL_1", "ONCDNINCL_1", "ONCDISDB_1", "SCIREVSTAT_1", "ONCDISDBINCL_1",
-    "ONCSCV_1", "CLNDN_1", "ONCCONF_1", "CLNVC_1", "SCIDISDB_1", "CLNVI_1", "ONCDN_1", "CLNSIGINCL_1",
-    "CLNDISDB_1", "GENEINFO_1", "CLNDISDBINCL_1", "CLNSIGCONF_1", "SCIDISDBINCL_1", "CLNHGVS_1", "SCIINCL_1",
-    "SCIDN_1", "SCI_1", "clinvar_OMIM_id", "clinvar_MedGen_id", "clinvar_Orphanet_id", "Reliability_index",
-    "AlphaMissense_pred", "SIFT_pred", "Polyphen2_HVAR_pred", "MutationTaster_pred", "Polyphen2_HDIV_pred",
-    "CADD_phred", "Uniprot_acc", "Interpro_domain", "effect", "impact", "errors"
+    "CHROM",
+    "START",
+    "END",
+    "width",
+    "paramRangeID",
+    "REF",
+    "ALT",
+    "QUAL",
+    "GT",
+    "AD",
+    "DP",
+    "GQ",
+    "MIN_DP",
+    "PGT",
+    "PID",
+    "PL",
+    "PS",
+    "RGQ",
+    "freqs",
+    "AC_1",
+    "AF_1",
+    "AN_1",
+    "DP_1",
+    "QD_1",
+    "LOF_1",
+    "NMD_1",
+    "VARTYPE_1",
+    "MNP_1",
+    "MIXED_1",
+    "HET_1",
+    "DBVARID_1",
+    "SCISCV_1",
+    "ALLELEID_1",
+    "rs_dbSNP",
+    "HGVSc_snpEff",
+    "HGVSp_snpEff",
+    "gene_name",
+    "annotation_id",
+    "gene_biotype",
+    "exon_intron_rank",
+    "nt_change",
+    "aa_change",
+    "cDNA_position.cDNA_len",
+    "nt_position",
+    "aa_position",
+    "distance_to_feature",
+    "CLNSIG_1",
+    "CLNVCSO_1",
+    "SCIDNINCL_1",
+    "CLNREVSTAT_1",
+    "ONCREVSTAT_1",
+    "CLNDNINCL_1",
+    "ONC_1",
+    "CLNSIGSCV_1",
+    "ORIGIN_1",
+    "ONCINCL_1",
+    "ONCDNINCL_1",
+    "ONCDISDB_1",
+    "SCIREVSTAT_1",
+    "ONCDISDBINCL_1",
+    "ONCSCV_1",
+    "CLNDN_1",
+    "ONCCONF_1",
+    "CLNVC_1",
+    "SCIDISDB_1",
+    "CLNVI_1",
+    "ONCDN_1",
+    "CLNSIGINCL_1",
+    "CLNDISDB_1",
+    "GENEINFO_1",
+    "CLNDISDBINCL_1",
+    "CLNSIGCONF_1",
+    "SCIDISDBINCL_1",
+    "CLNHGVS_1",
+    "SCIINCL_1",
+    "SCIDN_1",
+    "SCI_1",
+    "clinvar_OMIM_id",
+    "clinvar_MedGen_id",
+    "clinvar_Orphanet_id",
+    "Reliability_index",
+    "AlphaMissense_pred",
+    "SIFT_pred",
+    "Polyphen2_HVAR_pred",
+    "MutationTaster_pred",
+    "Polyphen2_HDIV_pred",
+    "CADD_phred",
+    "Uniprot_acc",
+    "Interpro_domain",
+    "effect",
+    "impact",
+    "errors"
   )
   
   
@@ -1504,14 +1696,17 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Limpieza y formateo final
   print("Limpieza y filtrado final de errores y formatos...")
   df_limpio <- df_limpio %>%
-    mutate(
-      errors = gsub('["\'\\\\]', '', errors),
-      errors = trimws(errors)
-    ) %>%
-    filter(is.na(errors) | errors == "" | errors == "INFO_REALIGN_3_PRIME")
-  df_limpio$AD <- sapply(df_limpio$AD, function(x) paste(x, collapse = "|"))
+    mutate(errors = gsub('["\'\\\\]', '', errors),
+           errors = trimws(errors)) %>%
+    filter(is.na(errors) |
+             errors == "" | errors == "INFO_REALIGN_3_PRIME")
+  df_limpio$AD <- sapply(df_limpio$AD, function(x)
+    paste(x, collapse = "|"))
   df_limpio$PL <- sapply(df_limpio$PL, function(x)
-    if (all(is.na(x))) NA_character_ else paste(x, collapse = "|"))
+    if (all(is.na(x)))
+      NA_character_
+    else
+      paste(x, collapse = "|"))
   df_limpio <- bind_cols(SAMPLE = muestra, df_limpio)
   
   print("Primeras filas del dataframe final antes de overlap:")
@@ -1531,49 +1726,79 @@ process_vcf_to_table <- function(folder_fasta,
   
   print("Overlap con exoma realizado.")
   print("=== Proceso COMPLETO: process_vcf_to_table ===")
-  write.csv(df_limpio,"./df_limpio.csv")
+  
+  hpo <- read.delim(hpo_file_, skip = 1, header = F)[, c(2, 4)]
+  
+  
+  hpo_ <- aggregate(V4 ~ V2, hpo, FUN = paste, collapse = ";")
+  colnames(hpo_) <- c("gene_name", "hpo")
+  
+  df_limpio <- left_join(df_limpio, hpo_, by = "gene_name")
+  df_limpio <- buscar_herencia(df_limpio)
+  
+  archivo_final <- file.path(post_process_dir, "file_ready_analysis_optimized.csv")
+  
+  unicas <- df_limpio[which(df_limpio$N==1),]
+  
+  acmg <- read.delim("./acmg.txt")[,1]
+  
+  secondary <- df_limpio[which(df_limpio$gene_name %in% acmg),]
+  
+  secondary_unicas <- secondary[which(secondary$N==1),]
+  
+  write.csv(df_limpio,archivo_final )
+  archivo_final_unicas <- file.path(post_process_dir, "file_ready_analysis_optimized_UNICAS.csv")
+  archivo_final_secundarias <- file.path(post_process_dir, "ACMG_ALL.csv")
+  archivo_final_sec_unicas <- file.path(post_process_dir, "ACMG_UNICAS.csv")
+  
+  write.csv(unicas,archivo_final_unicas )
+  write.csv(secondary,archivo_final_secundarias )
+  write.csv(secondary_unicas,archivo_final_sec_unicas )
+  
+  }else{
+    print("Ya esta procesado")
+  }
+  
   #return(df_limpio)
 }
 
 
 
 
+compute_depth <- function(fastq_dir, output_dir) {
+  ## el directorio del mapeo esta creado pero lo tenemos que guardar de nuevo
+  mapping_output_dir <- file.path(output_dir, "mapping_output")
+  fastq_files <- list.files(fastq_dir, full.names = F)
+  output_file_name <-
+    unlist(strsplit(gsub("R[12]", "map", fastq_files[1]), "/"))
+  ## quitamos la extension del archivo
+  output_file_name <- file_path_sans_ext(output_file_name)
+  
+  bam_file <-
+    file.path(mapping_output_dir,
+              paste0(output_file_name, ".sorted.mark_dup_RG_bqsr.bam"))
+  
+  dir_coverage <- file.path(output_dir, "coverage_and_stats")
+  if (!dir.exists(dir_coverage)) {
+    dir.create(dir_coverage)
+  }
+  outfile_coverage <- file.path(dir_coverage, "coverage.txt")
+  
+  bed_file <- "./xgen-exome.bed"
+  fasta_ref <- " ~/datos_exomas/datos_gatk/hg38/hg38.fasta"
+  
+  comando <- paste("./compute_depthV2.sh", bam_file, bed_file, fasta_ref, outfile_coverage)
+  if (!file.exists(outfile_coverage)) {
+    print("computando cobertura...")
+    print(comando)
+    system(comando, intern = T)
+    
+  } else{
+    print("la cobertura ya esta computada")
+  }
+  
+}
 
-
-
-
-
-#
-# compute_depth <- function(fastq_dir, output_dir) {
-#   ## el directorio del mapeo esta creado pero lo tenemos que guardar de nuevo
-#   mapping_output_dir <- file.path(output_dir, "mapping_output")
-#   fastq_files <- list.files(fastq_dir, full.names = F)
-#   output_file_name <-
-#     unlist(strsplit(gsub("R[12]", "map", fastq_files[1]), "/"))
-#   ## quitamos la extension del archivo
-#   output_file_name <- file_path_sans_ext(output_file_name)
-#
-#   bam_file <-
-#     file.path(mapping_output_dir,
-#               paste0(output_file_name, ".sorted.mark_dup_RG_bqsr.bam"))
-#
-#   dir_coverage <- file.path(output_dir, "coverage_and_stats")
-#   if (!dir.exists(dir_coverage)) {
-#     dir.create(dir_coverage)
-#   }
-#   outfile_coverage <- file.path(dir_coverage, "coverage.txt")
-#   comando <- paste("./compute_depth.sh", bam_file, ">", outfile_coverage)
-#   if (!file.exists(outfile_coverage)) {
-#     print("computando cobertura...")
-#     print(comando)
-#     system(comando, intern = T)
-#
-#   } else{
-#     print("la cobertura ya esta computada")
-#   }
-#
-# }
-#
 # compute_stats <- function(fastq_dir, output_dir, muestra) {
 #   dir_coverage <- file.path(output_dir, "coverage_and_stats")
 #   if (!file.exists(file.path(dir_coverage, "stats.csv"))) {
@@ -1745,61 +1970,61 @@ args <- commandArgs(trailingOnly = T)
 args <- unlist(strsplit(args, " "))
 muestra <- args
 # for (muestra in muestras) {
-  output_dir <- file.path("~/pipeline/exomas", muestra, "output_dir")
-  if (!dir.exists(output_dir)) {
-    dir.create(output_dir)
-  }
-  hpo_file <- "~/datos_exomas/data_pipeline/genes_to_phenotype.txt"
-  fastq_dir <- file.path("~/pipeline/exomas", muestra, "fastqfiles")
-  folder_fasta <-
-    file.path("~/datos_exomas/datos_gatk/hg38")
-  folder_data_gatk <- file.path("~/datos_exomas/datos_gatk")
-  path_snpeff <- "~/tools/snpEff/"
-  bd_data <- "./bd.rds"
-  
-  control_calidad(fastq_dir, output_dir)
-  index_bwa(folder_fasta)
-  bwamem(fastq_dir, folder_fasta)
-  markdups(output_dir = output_dir, fastq_dir = fastq_dir)
-  ## creamos diccionario
-  create_dict(folder_fasta)
-  ## anadimos reaad group
-  creacion_readgroup(output_dir, fastq_dir)
-  ## Recalibramos
-  base_recalibrator(folder_fasta, output_dir, folder_data_gatk, fastq_dir)
-  ### aplicamos el recalibrado
-  applybqsr(folder_fasta, output_dir, fastq_dir)
-  ## estadisticas del pieline bam
-  bam_statistics(folder_fasta, fastq_dir, output_dir)
-  ## llamamos a las variantes
-  haplotype_caller(output_dir, folder_fasta, fastq_dir)
-  ## Calculamos la probabilidad posterior del alelo referente
-  genotypeGVCF(folder_fasta, output_dir, fastq_dir)
-  ## calculamos variant Recalibrator
-  variantRecallibrator(fastq_dir, folder_fasta, folder_data_gatk, output_dir)
-  ## apply VQSR
-  applyVQSR(folder_fasta, fastq_dir, output_dir)
-  ## primer filtraje
-  variantFiltration(folder_fasta, output_dir, fastq_dir)
-  ## preparamos el archivo listo para elanalisis
-  analysisReady(folder_fasta, output_dir, fastq_dir)
-  ##
-  anotation(folder_fasta, path_snpeff, output_dir, fastq_dir)
-  
-  valorar_Df <- process_vcf_to_table(folder_fasta = folder_fasta,
-                                     output_dir = output_dir,
-                                     fastq_dir = fastq_dir,
-                                     muestra = muestra,
-                                     db = bd_data)
-  
-  # process(output_dir, fastq_dir, hpo_file, muestra)
-  #
-  # compute_depth(fastq_dir = fastq_dir, output_dir)
-  #
-  # unique_variants(output_dir, muestra, bd_data)
-  #
-  # compute_stats(fastq_dir, output_dir, muestra)
-  
-  
+output_dir <- file.path("~/pipeline/exomas", muestra, "output_dir")
+if (!dir.exists(output_dir)) {
+  dir.create(output_dir)
+}
+hpo_file <- "~/datos_exomas/data_pipeline/genes_to_phenotype.txt"
+fastq_dir <- file.path("~/pipeline/exomas", muestra, "fastqfiles")
+folder_fasta <-
+  file.path("~/datos_exomas/datos_gatk/hg38")
+folder_data_gatk <- file.path("~/datos_exomas/datos_gatk")
+path_snpeff <- "~/tools/snpEff/"
+bd_data <- "./bd.rds"
+
+control_calidad(fastq_dir, output_dir)
+index_bwa(folder_fasta)
+bwamem(fastq_dir, folder_fasta)
+markdups(output_dir = output_dir, fastq_dir = fastq_dir)
+## creamos diccionario
+create_dict(folder_fasta)
+## anadimos reaad group
+creacion_readgroup(output_dir, fastq_dir)
+## Recalibramos
+base_recalibrator(folder_fasta, output_dir, folder_data_gatk, fastq_dir)
+### aplicamos el recalibrado
+applybqsr(folder_fasta, output_dir, fastq_dir)
+## estadisticas del pieline bam
+bam_statistics(folder_fasta, fastq_dir, output_dir)
+## llamamos a las variantes
+haplotype_caller(output_dir, folder_fasta, fastq_dir)
+## Calculamos la probabilidad posterior del alelo referente
+genotypeGVCF(folder_fasta, output_dir, fastq_dir)
+## calculamos variant Recalibrator
+variantRecallibrator(fastq_dir, folder_fasta, folder_data_gatk, output_dir)
+## apply VQSR
+applyVQSR(folder_fasta, fastq_dir, output_dir)
+## primer filtraje
+variantFiltration(folder_fasta, output_dir, fastq_dir)
+## preparamos el archivo listo para elanalisis
+analysisReady(folder_fasta, output_dir, fastq_dir)
+##
+anotation(folder_fasta, path_snpeff, output_dir, fastq_dir)
+
+process_vcf_to_table(
+  folder_fasta = folder_fasta,
+  output_dir = output_dir,
+  fastq_dir = fastq_dir,
+  muestra = muestra,
+  db = bd_data,
+  hpo_file = hpo_file
+)
+
+
+compute_depth(fastq_dir = fastq_dir, output_dir)
+
+# compute_stats(fastq_dir, output_dir, muestra)
+
+
 # }
 print(Sys.time() - start)
