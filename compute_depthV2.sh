@@ -23,29 +23,26 @@ done
 
 # 1. Obtener chrom.sizes y bed_split.bed
 echo "Generando chrom.sizes..."
-samtools faidx "$FASTA"
-awk '{print $1 "\t" $2}' "${FASTA}.fai" > chrom.sizes
-
+faidx "$FASTA" -i chromsizes >  chrom.sizes
 echo "Generando bed_split.bed para cada cromosoma..."
-awk '{printf("%s\t0\t%s\n",$1,$2);}' "${FASTA}.fai" > bed_split.bed
 
+awk '/^chr[0-9XY]*\t/ {printf("%s\t0\t%s\n",$1,$2);}' "${FASTA}.fai" > bed_split.bed
 # 2. Extraer regiones del BAM (por cromosoma)
 echo "Extrayendo regiones del BAM..."
-samtools view -b -h -L bed_split.bed "$BAM" > out.bam
-
+samtools view -b -h -L bed_split.bed $BAM > out.bam
 # 3. Preparar archivo genome de tamaños (para bedtools)
-awk '{printf("%s\t%s\n",$1,$2);}' chrom.sizes | sort -V > sizes.genome.sort
+cat sizes.genome|sort -V > sizes.genome.sort
 
-# 4. Ordenar el BAM (se recomienda suficiente RAM, ajustar si es necesario)
-echo "Sorteando BAM..."
-samtools sort out.bam -@ 32 -o myfile_sorted.bam
+echo "sortear el bam a 16 gb" 
+samtools sort out.bam -@ 16 -o myfile_sorted.bam
 
 # 5. Ordenar el archivo BED del kit
 echo "Ordenando el archivo BED del kit..."
-cat "$KIT_BED" | sort -k1,1 -k2,2n -k3,3n > kit_sorted.bed
 
+cat "$KIT_BED"| sort -k1,1 -k2,2n -k3,3n > kit_sorted.bed
 
 echo "Calculando cobertura con bedtools..."
-bedtools coverage -a kit_sorted.bed -b myfile_sorted.bam -g sizes.genome.sort -sorted -hist > "$OUTFILE"
+
+bedtools coverage -a kit_sorted.bed  -b myfile_sorted.bam -g sizes.genome.sort -sorted -hist 
 
 echo "¡Listo! Resultado guardado en $OUTFILE"
