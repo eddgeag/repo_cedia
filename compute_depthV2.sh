@@ -1,8 +1,6 @@
 #!/bin/bash
-# Uso: bash script.sh <BAM> <KIT_BED> <FASTA_REF>
-# Ejemplo: bash script.sh sample.bam xgen-exome.bed ~/datos_exomas/datos_gatk/hg38/hg38.fasta
 
-# Control de errores y argumentos
+# --- Verifica parámetros ---
 if [ "$#" -lt 4 ]; then
     echo "Uso: $0 <BAM> <KIT_BED> <FASTA_REF> <OUTFILE>"
     exit 1
@@ -13,36 +11,52 @@ KIT_BED=$2
 FASTA=$3
 OUTFILE=$4
 
-# Chequeo de existencia de archivos
-for f in "$BAM" "$KIT_BED" "$FASTA"; do
-    if [ ! -f "$f" ]; then
-        echo "Archivo no encontrado: $f"
-        exit 1
-    fi
-done
+# --- Archivos intermedios ---
+FAI="${FASTA}.fai"
+CHROMSIZES="chrom.sizes"
+BEDSPLIT="bed_split.bed"
+OUTBAM="out.bam"
+SORTBAM="myfile_sorted.bam"
+KITSORTED="kit_sorted.bed"
+GENOMESIZES="sizes.genome"
 
-# 1. Obtener chrom.sizes y bed_split.bed
-echo "Generando chrom.sizes..."
-faidx "$FASTA" -i chromsizes >  chrom.sizes
-echo "Generando bed_split.bed para cada cromosoma..."
+# 1. Index del fasta si no existe
+if [ ! -f "$FAI" ]; then
+    echo "Indexando $FASTA..."
+    samtools faidx "$FASTA"
+fi
 
-awk '/^chr[0-9XY]*\t/ {printf("%s\t0\t%s\n",$1,$2);}' "${FASTA}.fai" > bed_split.bed
-# 2. Extraer regiones del BAM (por cromosoma)
-echo "Extrayendo regiones del BAM..."
-samtools view -b -h -L bed_split.bed $BAM > out.bam
-# 3. Preparar archivo genome de tamaños (para bedtools)
-cat sizes.genome|sort -V > sizes.genome.sort
+# 2. chrom.sizes
+cut -f1,2 "$FAI" > "$CHROMSIZES"
 
-echo "sortear el bam a 16 gb" 
-samtools sort out.bam -@ 16 -o myfile_sorted.bam
+# 3. bed_split.bed
+awk '{printf("%s\t0\t%s\n",$1,$2);}' "$CHROMSIZES" > "$BEDSPLIT"
 
-# 5. Ordenar el archivo BED del kit
-echo "Ordenando el archivo BED del kit..."
+# 4. out.bam (solo si NO existe)
+if [ ! -f "$OUTBAM" ]; then
+    echo "Extrayendo regiones del BAM..."
+    samtools view -b -h -L "$BEDSPLIT" "$BAM" > "$OUTBAM"
+else
+    echo "Ya existe $OUTBAM, saltando extracción."
+fi
 
-cat "$KIT_BED"| sort -k1,1 -k2,2n -k3,3n > kit_sorted.bed
+# 5. myfile_sorted.bam (solo si NO existe)
+if [ ! -f "$SORTBAM" ]; then
+    echo "Ordenando BAM..."
+    samtools sort -@ 16 -T temp_sort -o "$SORTBAM" "$OUTBAM"
+else
+    echo "Ya existe $SORTBAM, saltando ordenamiento."
+fi
 
+# 6. BED ordenado
+sort -k1,1 -k2,2n -k3,3n "$KIT_BED" > "$KITSORTED"
+
+# 7. Copiar sizes.genome (mismo orden que BAM)
+cp "$CHROMSIZES" "$GENOMESIZES"
+
+# 8. Cobertura
 echo "Calculando cobertura con bedtools..."
-
-bedtools coverage -a kit_sorted.bed  -b myfile_sorted.bam -g sizes.genome.sort -sorted -hist > "$OUTFILE"
+bedtools coverage -a "$KITSORTED" -b "$SORTBAM" -g "$GENOMESIZES" -sorted -hist > "$OUTFILE"
 
 echo "¡Listo! Resultado guardado en $OUTFILE"
+
