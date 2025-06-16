@@ -1784,7 +1784,7 @@ compute_depth <- function(fastq_dir, output_dir) {
   }
   outfile_coverage <- file.path(dir_coverage, "coverage.txt")
   
-  bed_file <- "./xgen-exome.bed"
+  bed_file <- "./MGI_Exome_Capture_V5.bed"
   fasta_ref <- " ~/datos_exomas/datos_gatk/hg38/hg38.fasta"
   
   comando <- paste("./compute_depthV2.sh", bam_file, bed_file, fasta_ref, outfile_coverage)
