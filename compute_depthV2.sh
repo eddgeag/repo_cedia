@@ -43,6 +43,6 @@ cat "$KIT_BED"| sort -k1,1 -k2,2n -k3,3n > kit_sorted.bed
 
 echo "Calculando cobertura con bedtools..."
 
-bedtools coverage -a kit_sorted.bed  -b myfile_sorted.bam -g sizes.genome.sort -sorted -hist 
+bedtools coverage -a kit_sorted.bed  -b myfile_sorted.bam -g sizes.genome.sort -sorted -hist > "$OUTFILE"
 
 echo "¡Listo! Resultado guardado en $OUTFILE"
