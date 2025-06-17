@@ -46,7 +46,7 @@ cp "$CHROMSIZES" "$GENOMESIZES"
 
 # 8. Cobertura
 echo "Calculando cobertura con bedtools..."
-bedtools coverage -a "$KITSORTED" -b "$SORTBAM" -g "$GENOMESIZES" -sorted > "$OUTFILE"
+bedtools coverage -a "$KITSORTED" -b "$SORTBAM" -g "$GENOMESIZES" -sorted -hist > "$OUTFILE"
 
 echo "¡Listo! Resultado guardado en $OUTFILE"
 
