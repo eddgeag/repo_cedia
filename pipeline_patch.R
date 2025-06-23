@@ -1799,166 +1799,166 @@ compute_depth <- function(fastq_dir, output_dir) {
   
 }
 
-# compute_stats <- function(fastq_dir, output_dir, muestra) {
-#   dir_coverage <- file.path(output_dir, "coverage_and_stats")
-#   if (!file.exists(file.path(dir_coverage, "stats.csv"))) {
-#     dir_coverage <- file.path(output_dir, "coverage_and_stats")
-#     cov_file <- file.path(dir_coverage, "coverage.txt")
-#     process_dir <- file.path(output_dir, "post_process_results")
-#     exoma_file <- file.path(process_dir, "file_ready_analysis.csv")
-#
-#     cov_data <- read.delim(cov_file, header = F)
-#     exoma <- read.csv(exoma_file, na.strings = ".")
-#     cromosomas <- c(paste0("chr", 1:22), "chrX", "chrY")
-#     exoma <- exoma[exoma$CHROM %in% cromosomas, ]
-#     interest.data <- cov_data[cov_data$V1 !=
-#                                 "all", "V7"]
-#     mean_coverage <- round(mean(interest.data, na.rm = T), 2)
-#     mean_coverage20 <- round(mean(interest.data[interest.data > 20], na.rm =
-#                                     T), 2)
-#     cov.data <- cov_data
-#
-#     cov.data$V4 <- gsub("_.*", "", cov.data$V4)
-#     cov.data <- cov.data[cov.data$V1 != "all", ]
-#
-#     cov.data <- aggregate(V7 ~ V4, data = cov.data, mean)
-#
-#     genes_totales <- length(unique(cov.data$V4))
-#
-#     genes_20 <- length(cov.data[which(cov.data$V7 > 20), "V4"])
-#
-#     genes_por_20 <- round(100 * genes_20 / genes_totales, 2)
-#
-#
-#     genes_mayor_media <- length(cov.data[which(cov.data$V7 > mean_coverage), "V4"])
-#
-#     genes_por_media <- round(100 * genes_mayor_media / genes_totales, 2)
-#
-#
-#     variantes_totales.df <- as.data.frame(lapply(exoma[, c("POS", "DP")], as.numeric))
-#
-#     variantes_dp <- aggregate(DP ~ POS, data = variantes_totales.df, mean)
-#
-#     variantes_totales <- length(unique(variantes_dp$POS))
-#     variantes_20 <- length(unique(variantes_totales.df[which(variantes_totales.df$DP >
-#                                                                20), "POS"]))
-#     variantes_20_x <- round(100 * variantes_20 / variantes_totales, 2)
-#
-#     variantes_media <- length(unique(variantes_totales.df[which(variantes_totales.df$DP >
-#                                                                   mean_coverage), "POS"]))
-#     variantes_media_x <- round(100 * variantes_media / variantes_totales, 2)
-#
-#     res <- as.data.frame(
-#       c(
-#         mean_coverage = mean_coverage,
-#         mean_coverage20 = mean_coverage20,
-#         genes_totales = genes_totales,
-#         genes_20 = genes_20,
-#         genes_por_20 = genes_por_20,
-#         genes_mayor_media = genes_mayor_media,
-#         genes_por_media = genes_por_media,
-#         variantes_totales = variantes_totales,
-#         variantes_20 = variantes_20,
-#         variantes_20_x = variantes_20_x,
-#         variantes_media = variantes_media,
-#         variantes_media_x
-#       )
-#     )
-#     res$Descripcion <- c(
-#       "Cobertura media",
-#       "Cobertura media > 20X",
-#       "Genes totales",
-#       "Genes > 20 X",
-#       "Genes % > 20X",
-#       "Genes > media",
-#       "Genes % > media",
-#       "Variantes totales",
-#       "Variantes > 20X",
-#       "Variantes % >20X",
-#       "Variantes > media X",
-#       "Variantes % > media X"
-#     )
-#     res <- res[, c(2, 1)]
-#     colnames(res) <- c("Descripcion", "Stats")
-#
-#
-#     gcov <- cov_data[cov_data[, 1] == 'all', ]
-#     ###
-#     longitud <- 300
-#     datos.pre <-
-#       data.frame(
-#         X = gcov[1:longitud, 2],
-#         Y = 100 * (1 - cumsum(gcov[1:longitud, 5])),
-#         Z = 100 * gcov[1:longitud, 5],
-#         relleno = gcov[1:longitud, 1]
-#       )
-#     datos.pre$relleno <- as.factor(datos.pre$relleno)
-#     p1 <-
-#       ggplot(data = datos.pre, aes(X, Y, fill = relleno)) + geom_line(color =
-#                                                                         "steelblue", linewidth = 2) + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region >= Profunidad") + theme(legend.position = "none") +
-#       theme_classic()
-#     p2 <-
-#       ggplot(data = datos.pre, aes(X, Z, fill = relleno)) + geom_col() + scale_fill_discrete(type =
-#                                                                                                "steelblue") + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region") + theme(legend.position = "none") + theme_classic()
-#
-#     p3 <- ggpubr::ggarrange(p1, p2, ncol = 2)
-#
-#     figura_file_name <- file.path(dir_coverage, "cobertura.jpeg")
-#
-#     p4 <-
-#       ggpubr::annotate_figure(p3,
-#                               top = paste(
-#                                 muestra,
-#                                 "Profundidad media de cobertura:",
-#                                 mean_coverage,
-#                                 "X"
-#                               ))
-#     ggsave(filename = figura_file_name, plot = p4)
-#     res_file <- file.path(dir_coverage, "stats.csv")
-#     write.csv(res, res_file)
-#
-#     blah <- paste(
-#       "<p>Esta muestra se ha estudiado por el metodo de secuenciacion masiva en paralelo del exoma completo. Se analizaron",
-#       res[3, 2],
-#       "genes. La sensibilidad y la especificidad del metodo son superiores al 98% (SNV< 20 bp INDELS). El porcentaje de genes con una cobertura mayor a 20X es de",
-#       round(as.numeric(res[5, 2]), 2),
-#       "%. De todas las variantes identificadas, que son un total de",
-#       res[8, 2],
-#       ",",
-#       res[9, 2],
-#       "tienen una cobertura mayor a 20X, esto significa un",
-#       round(as.numeric(res[10, 2], 2)),
-#       "%.</p>"
-#     )
-#
-#     res <- print(xtable(res), type = "html")
-#
-#     fileconn <- "./aux1.html"
-#     writeLines(blah, fileconn)
-#     fileconn <- "./aux2.html"
-#     writeLines(res, fileconn)
-#
-#     command <- paste("cat aux1.html aux2.html > ",
-#                      file.path(dir_coverage, "doc.html"))
-#
-#     system(command)
-#
-#     command <- paste(
-#       "pandoc --output",
-#       file.path(dir_coverage, "reporte.docx"),
-#       file.path(dir_coverage, "doc.html")
-#     )
-#
-#     system(command)
-#
-#
-#
-#
-#
-#   } else{
-#     print("ya se computaron las estadisticas")
-#   }
-# }
+
+compute_stats <- function(fastq_dir, output_dir, muestra) {
+  dir_coverage <- file.path(output_dir, "coverage_and_stats")
+  if (!file.exists(file.path(dir_coverage, "stats.csv"))) {
+    dir_coverage <- file.path(output_dir, "coverage_and_stats")
+    cov_file <- file.path(dir_coverage, "coverage.txt")
+    process_dir <- file.path(output_dir, "post_process_results")
+    exoma_file <- file.path(process_dir, "file_ready_analysis.csv")
+
+    cov_data <- read.delim(cov_file, header = F)
+    exoma <- read.csv(exoma_file, na.strings = ".")
+    
+    cromosomas <- c(paste0("chr",1:22),"chrX","chrY","chrM")
+    exoma <- exoma[exoma$CHROM %in% cromosomas,]
+    df_hist <- cov_data[cov_data$V1!="all", ]
+    
+    colnames(df_hist) <-c("chr", "start", "end", "depth", "bases_at_depth", "region_length", "fraction")
+    df_hist <- df_hist[df_hist$depth>0,]
+    # Calcular cobertura media por región
+    
+    # Filtrar sólo las filas "all"
+    df_all <- interest.data %>% filter(V1 == "all")
+    
+    mean_coverage <- mean( mean(df_hist$depth))
+    
+    mean_coverage20 <- round(mean(df_hist[df_hist$depth>20,"depth"],na.rm=T), 2)
+    
+    exoma_genes_variants <- unique(exoma[,c("CHROM","POS","END","DP","gene_name")])
+    
+    
+    exoma_ <- exoma[-grep("-",exoma$gene_name),]
+    
+    exoma_2  <- exoma_ %>% group_by(gene_name)%>% summarise(mean_dp = mean(DP))
+    
+    genes_totales <- length(unique(exoma_2$gene_name))
+    
+    genes_20 <- length(exoma_2[which(exoma_2$mean_dp>20),]$gene_name )
+    
+    genes_por_20 <- round(100*genes_20/genes_totales,2)
+    
+    
+    genes_mayor_media <- length(exoma_2[which(exoma_2$mean_dp>mean_coverage),"gene_name"]$gene_name)
+    
+    genes_por_media <- round(100*genes_mayor_media/genes_totales,2)
+    
+    
+    variantes_totales <- dim(exoma_)[1]
+    
+    variantes_20 <- dim((exoma_[which(exoma_$DP>20),]))[1]
+    variantes_20_x <- round(100*variantes_20/variantes_totales,2)
+    
+    variantes_media <- dim((exoma_[which(exoma_$DP>mean_coverage),]))[1]
+    variantes_media_x <- round(100*variantes_media/variantes_totales,2)
+    
+    res <- as.data.frame(c(mean_coverage=mean_coverage,
+                           mean_coverage20=mean_coverage20,
+                           genes_totales=genes_totales,
+                           genes_20=genes_20,
+                           genes_por_20=genes_por_20,
+                           genes_mayor_media=genes_mayor_media,
+                           genes_por_media=genes_por_media,
+                           variantes_totales=variantes_totales,
+                           variantes_20=variantes_20,
+                           variantes_20_x=variantes_20_x,
+                           variantes_media=variantes_media,
+                           variantes_media_x))
+    res$Descripcion <- c("Cobertura media",
+                         "Cobertura media > 20X",
+                         "Genes totales",
+                         "Genes > 20 X",
+                         "Genes % > 20X",
+                         "Genes > media",
+                         "Genes % > media",
+                         "Variantes totales",
+                         "Variantes > 20X",
+                         "Variantes % >20X",
+                         "Variantes > media X",
+                         "Variantes % > media X")
+    res <- res[,c(2,1)]
+    colnames(res) <- c("Descripcion","Stats")
+    
+    
+    gcov <- cov_data[cov_data[, 1] == 'all',]
+    
+    ###
+    longitud <- 20:200
+    datos.pre <-
+      data.frame(
+        X = gcov[longitud, 2],
+        Y = 100 * (1-  cumsum(gcov[longitud, 5])),
+        Z =  100*gcov[longitud, 5],
+        relleno = gcov[longitud, 1]
+      )
+    datos.pre$relleno <- as.factor(datos.pre$relleno)
+    p1 <-
+      ggplot(data = datos.pre, aes(X, Y, fill = relleno)) + geom_line(color =
+                                                                        "steelblue", linewidth = 2) + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region >= Profunidad") + theme(legend.position = "none") +
+      theme_classic()
+    p2 <-
+      ggplot(data = datos.pre, aes(X, Z, fill = relleno)) + geom_col() + scale_fill_discrete(type =
+                                                                                               "steelblue") + xlab("Profundidad de Cobertura") + ylab("Porcentaje de la region") + theme(legend.position = "none") + theme_classic()
+    
+    p3 <-ggpubr::ggarrange(p1, p2, ncol = 2)
+    p3
+    figura_file_name <- file.path(dir_coverage,"cobertura.jpeg")
+    
+    p4 <-
+      ggpubr::annotate_figure(p3,
+                              top = paste(
+                                muestra,
+                                "Profundidad media de cobertura:",
+                                mean_coverage,
+                                "X"
+                              ))
+    ggsave(filename = figura_file_name, plot = p4)
+    res_file <- file.path(dir_coverage, "stats.csv")
+    write.csv(res, res_file)
+
+    blah <- paste(
+      "<p>Esta muestra se ha estudiado por el metodo de secuenciacion masiva en paralelo del exoma completo. Se analizaron",
+      res[3, 2],
+      "genes. La sensibilidad y la especificidad del metodo son superiores al 98% (SNV< 20 bp INDELS). El porcentaje de genes con una cobertura mayor a 20X es de",
+      round(as.numeric(res[5, 2]), 2),
+      "%. De todas las variantes identificadas, que son un total de",
+      res[8, 2],
+      ",",
+      res[9, 2],
+      "tienen una cobertura mayor a 20X, esto significa un",
+      round(as.numeric(res[10, 2], 2)),
+      "%.</p>"
+    )
+
+    res <- print(xtable(res), type = "html")
+
+    fileconn <- "./aux1.html"
+    writeLines(blah, fileconn)
+    fileconn <- "./aux2.html"
+    writeLines(res, fileconn)
+
+    command <- paste("cat aux1.html aux2.html > ",
+                     file.path(dir_coverage, "doc.html"))
+
+    system(command)
+
+    command <- paste(
+      "pandoc --output",
+      file.path(dir_coverage, "reporte.docx"),
+      file.path(dir_coverage, "doc.html")
+    )
+
+    system(command)
+
+
+
+
+
+  } else{
+    print("ya se computaron las estadisticas")
+  }
+}
 
 
 
@@ -2023,7 +2023,7 @@ process_vcf_to_table(
 
 compute_depth(fastq_dir = fastq_dir, output_dir)
 
-# compute_stats(fastq_dir, output_dir, muestra)
+compute_stats(fastq_dir, output_dir, muestra)
 
 
 # }
