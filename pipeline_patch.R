@@ -1806,7 +1806,7 @@ compute_stats <- function(fastq_dir, output_dir, muestra) {
     dir_coverage <- file.path(output_dir, "coverage_and_stats")
     cov_file <- file.path(dir_coverage, "coverage.txt")
     process_dir <- file.path(output_dir, "post_process_results")
-    exoma_file <- file.path(process_dir, "file_ready_analysis.csv")
+    exoma_file <- file.path(process_dir, "file_ready_analysis_optimized.csv")
 
     cov_data <- read.delim(cov_file, header = F)
     exoma <- read.csv(exoma_file, na.strings = ".")
