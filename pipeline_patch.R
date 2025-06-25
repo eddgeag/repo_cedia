@@ -1820,7 +1820,7 @@ compute_stats <- function(fastq_dir, output_dir, muestra) {
     # Calcular cobertura media por región
     
     # Filtrar sólo las filas "all"
-    df_all <- interest.data %>% filter(V1 == "all")
+    
     
     mean_coverage <- mean( mean(df_hist$depth))
     
