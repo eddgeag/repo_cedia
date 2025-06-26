@@ -1051,6 +1051,8 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
     "\n"
   )
   
+
+  
   bd_combined <-
     lapply(bd_list, function(x) {
       df <- as.data.frame(lapply(x, as.character), stringsAsFactors = FALSE)
@@ -1091,6 +1093,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   cat("Checkpoint 3: bd_grouped columns:",
       paste(names(bd_grouped), collapse = ", "),
       "\n")
+
   
   # 3) Filtrar únicamente las filas que contienen la muestra de interés
   bd_filtrado_muestra <- bd_grouped[grep(muestra, bd_grouped$paste_m), ]
@@ -1104,6 +1107,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   cat("Checkpoint 5: bd_filtrado_muestra columns:",
       paste(names(bd_filtrado_muestra), collapse = ", "),
       "\n")
+  
   
   # 5) Crear objeto GRanges a partir de bd_filtrado_muestra
   gr_bd <- makeGRangesFromDataFrame(
@@ -1707,7 +1711,7 @@ process_vcf_to_table <- function(folder_fasta,
       NA_character_
     else
       paste(x, collapse = "|"))
-  df_limpio <- bind_cols(SAMPLE = muestra, df_limpio)
+  df_limpio <- bind_cols(codigo = muestra, df_limpio)
   
   print("Primeras filas del dataframe final antes de overlap:")
   print(head(df_limpio))
@@ -1715,6 +1719,14 @@ process_vcf_to_table <- function(folder_fasta,
   # --- Overlap con exoma
   print("Aplicando overlap con regiones de exoma...")
   bd_list_ <- readRDS(db)
+  
+  exoma_pos <- df_limpio[,c("CHROM","START","END","gene_name","codigo")]
+  colnames(exoma_pos)[5] <- "codigo"
+  if (!any(names(bd_list_) == muestra)) {
+    bd_list_[[muestra]] <- exoma_pos
+    saveRDS(bd_list_, db)
+  }
+  
   cromosomas_ <- c(paste0("chr", 1:22), "chrX", "chrY", "chrM")
   
   df_limpio <- obtener_exoma_overlap(
