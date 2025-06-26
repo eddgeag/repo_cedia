@@ -1089,10 +1089,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
   cat("Checkpoint 3: bd_grouped columns:",
       paste(names(bd_grouped), collapse = ", "),
       "\n")
-  
-  cat("Checkpoint 3: bd_grouped columns:",
-      paste(names(bd_grouped), collapse = ", "),
-      "\n")
+
 
   
   # 3) Filtrar únicamente las filas que contienen la muestra de interés
@@ -1722,6 +1719,8 @@ process_vcf_to_table <- function(folder_fasta,
   
   exoma_pos <- df_limpio[,c("CHROM","START","END","gene_name","codigo")]
   colnames(exoma_pos)[5] <- "codigo"
+  colnames(exoma_pos) <- c( "Chr", "Start", "End", "Gene.refGene", "codigo")
+  
   if (!any(names(bd_list_) == muestra)) {
     bd_list_[[muestra]] <- exoma_pos
     saveRDS(bd_list_, db)
