@@ -1,9 +1,3 @@
-Aquí tienes un **README profesional, honesto y claro** para tu repositorio **repo_cedia**, escrito exactamente como lo necesitas.
-Está pensado para dejar muy buena impresión en un PI o evaluador técnico, explicando que es un workflow funcional, pragmático y 100% real-world, aunque no use Nextflow ni tecnologías modernas.
-
-Puedes copiar–pegar directamente en `repo_cedia/README.md`.
-
----
 
 # repo_cedia — Whole-Exome Sequencing (WES) Workflow
 
