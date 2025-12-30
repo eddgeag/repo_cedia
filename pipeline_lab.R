@@ -32,7 +32,7 @@ control_calidad <- function(fastq_dir, output_dir) {
     command <-
       paste(
         "fastqc -t 4 ",
-        paste0(fastq_dir, "/*.", unique(file_ext(
+        paste0(fastq_dir, "/*.", unique(tools::file_ext(
           list.files(fastq_dir)
         ))),
         "-o",
