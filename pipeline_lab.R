@@ -2727,6 +2727,8 @@ bd_data <- "./bd.rds"
 
 control_calidad(fastq_dir, output_dir)
 bwamem(fastq_dir = fastq_dir, folder_fasta = folder_fasta, output_dir = output_dir)
+add_read_groups(output_dir = output_dir, fastq_dir = fastq_dir)
+
 markdups(output_dir = output_dir, fastq_dir = fastq_dir)
 ## creamos diccionario
 create_dict(folder_fasta)
