@@ -2242,6 +2242,8 @@ dir.create(output_dir,    recursive = TRUE, showWarnings = FALSE)
 
 hpo_file <- "~/NAS_NGS/datos_exomas/data_pipeline/genes_to_phenotype.txt"
 fastq_dir <- file.path(muestra_dir, "fastqfiles")
+print("aquiiiiiiiiiiii")
+print(fastq_dir)
 folder_fasta <-
   file.path("~/NAS_NGS/datos_exomas/datos_gatk/hg38")
 folder_data_gatk <- file.path("~/NAS_NGS/datos_exomas/datos_gatk")
