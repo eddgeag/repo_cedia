@@ -2238,7 +2238,7 @@ if (!grepl("^\\d{2}$", yy)) {
 
 year_full <- paste0("20", yy)
 
-base_year_dir <- file.path("~/home/NAS_NGS", year_full)
+base_year_dir <- file.path("~/NAS_NGS", year_full)
 muestra_dir   <- file.path(base_year_dir, muestra)
 output_dir    <- file.path(muestra_dir, "output_dir")
 
