@@ -23,29 +23,35 @@ lapply(load.libs, require, character.only = TRUE)
 
 
 control_calidad <- function(fastq_dir, output_dir) {
-  ### Creamos directorio de QC si no existe
-  if (!dir.exists(file.path(output_dir, "QC"))) {
-    dir.create(file.path(output_dir, "QC"))
+  
+  qc_dir <- file.path(output_dir, "QC")
+  dir.create(qc_dir, showWarnings = FALSE, recursive = TRUE)
+  
+  if (length(list.files(qc_dir)) == 0) {
+    
+    fastq_files <- list.files(
+      fastq_dir,
+      pattern = "\\.(fq|fastq)\\.gz$",
+      full.names = TRUE
+    )
+    
+    if (length(fastq_files) == 0) {
+      stop("No se encontraron FASTQ en: ", fastq_dir)
+    }
+    
+    command <- paste(
+      "fastqc -t 4",
+      paste(fastq_files, collapse = " "),
+      "-o", qc_dir
+    )
+    
+    system(command)
+    
+  } else {
+    message("Ya se ha hecho el control de calidad")
   }
-  ### Si no existen archivos de salida
-  if (length(list.files(file.path(output_dir, "QC"))) == 0) {
-    command <-
-      paste(
-        "fastqc -t 4 ",
-        paste0(fastq_dir, "/*.", unique(tools::file_ext(
-          list.files(fastq_dir)
-        ))),
-        "-o",
-        file.path(output_dir, "QC")
-      )
-    system(command, intern = T)
-  } else{
-    message("Ya se ha hecho el control de Calidad")
-  }
-  
-  
-  
 }
+
 
 fn_exists_fasta <- function(folder_fasta) {
   extension = unlist(lapply(list.files(folder_fasta, pattern = "fa"), function(x)
@@ -2244,6 +2250,8 @@ hpo_file <- "~/NAS_NGS/datos_exomas/data_pipeline/genes_to_phenotype.txt"
 fastq_dir <- file.path(muestra_dir, "fastqfiles")
 print("aquiiiiiiiiiiii")
 print(fastq_dir)
+print(output_dir)
+
 folder_fasta <-
   file.path("~/NAS_NGS/datos_exomas/datos_gatk/hg38")
 folder_data_gatk <- file.path("~/NAS_NGS/datos_exomas/datos_gatk")
