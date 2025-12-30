@@ -72,159 +72,112 @@ index_bwa <- function(folder_fasta) {
   } else message("Ya existen los índices BWA")
 }
 
-
 bwamem <- function(fastq_dir,
                    folder_fasta,
                    output_dir) {
   
   ## =========================
-  ## 1) FASTA de referencia + índices
+  ## 1) FASTA de referencia
   ## =========================
-  fasta_file <- fn_exists_fasta(folder_fasta)
-  fasta_file <- path.expand(fasta_file)
-  
+  fasta_file <- path.expand(fn_exists_fasta(folder_fasta))
   index_bwa(folder_fasta)
   
-  ## Asegurar índice .fai
   if (!file.exists(paste0(fasta_file, ".fai"))) {
     index_fasta_samtools(folder_fasta)
   }
   
   ## =========================
-  ## 2) FASTQ R1 / R2
+  ## 2) FASTQ
   ## =========================
   fq <- list.files(fastq_dir, pattern = "\\.fq\\.gz$", full.names = TRUE)
-  r1 <- fq[grepl("_R1\\.fq\\.gz$", basename(fq))]
-  r2 <- fq[grepl("_R2\\.fq\\.gz$", basename(fq))]
+  r1 <- path.expand(fq[grepl("_R1\\.fq\\.gz$", fq)])
+  r2 <- path.expand(fq[grepl("_R2\\.fq\\.gz$", fq)])
   stopifnot(length(r1) == 1, length(r2) == 1)
   
-  r1 <- path.expand(r1)
-  r2 <- path.expand(r2)
+  ## =========================
+  ## 3) Sample ID
+  ## =========================
+  sample_id <- get_sample_name(fastq_dir)
   
   ## =========================
-  ## 3) Nombre de muestra (CANÓNICO)
-  ## =========================
-  output_file_name <- get_sample_name(fastq_dir)
-  
-  ## =========================
-  ## 4) Directorio de salida
+  ## 4) Output dirs
   ## =========================
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
-  dir.create(mapping_output_dir, showWarnings = FALSE, recursive = TRUE)
+  dir.create(mapping_output_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  sam_file <- file.path(mapping_output_dir, paste0(sample_id, ".sam"))
+  bam_file <- file.path(mapping_output_dir, paste0(sample_id, ".bam"))
+  sorted_bam <- file.path(mapping_output_dir, paste0(sample_id, ".sorted.bam"))
   
   ## =========================
-  ## 5) Archivos de salida
+  ## 5) BWA MEM (SIN RG)
   ## =========================
-  output_file_sam        <- file.path(mapping_output_dir, paste0(output_file_name, ".sam"))
-  output_file_bam        <- file.path(mapping_output_dir, paste0(output_file_name, ".bam"))
-  output_file_sorted_bam <- file.path(mapping_output_dir, paste0(output_file_name, ".sorted.bam"))
-  output_file_sorted_bai <- paste0(output_file_sorted_bam, ".bai")
-  
-  ## =========================
-  ## 6) Ejecutar mapeo (SIN redirecciones frágiles)
-  ## =========================
-  if (!file.exists(output_file_sorted_bam)) {
+  if (!file.exists(sorted_bam)) {
     
-    message("#### MAPPING (bwa mem) ####")
-    ## Read Group con TAB reales (OBLIGATORIO)
-    rg <- paste(
-      "@RG",
-      paste0("ID:", output_file_name),
-      paste0("SM:", output_file_name),
-      "PL:ILLUMINA",
-      "LB:lib1",
-      "PU:unit1",
-      sep = "\t"
-    )
+    message("#### MAPPING (bwa mem, sin RG) ####")
     
     ret <- system2(
-      command = "bwa",
+      "bwa",
       args = c(
         "mem", "-M", "-t", "8",
-        "-R", rg,
-        fasta_file,
-        r1,
-        r2
+        fasta_file, r1, r2
       ),
-      stdout = output_file_sam,
-      stderr = ""
+      stdout = sam_file
     )
     
-    if (ret != 0 || !file.exists(output_file_sam)) {
-      stop("ERROR CRÍTICO: bwa mem falló para la muestra ", output_file_name)
+    if (ret != 0 || !file.exists(sam_file)) {
+      stop("ERROR CRÍTICO: bwa mem falló para ", sample_id)
     }
     
-    ## =========================
-    ## SAM -> BAM
-    ## =========================
-    message("#### SAM -> BAM ####")
-    
-    ret <- system2(
-      command = "samtools",
-      args = c("view", "-b", "-h", "-@", "8", output_file_sam),
-      stdout = output_file_bam
+    ## SAM → BAM
+    system2(
+      "samtools",
+      args = c("view", "-b", "-h", "-@", "8", sam_file),
+      stdout = bam_file
     )
     
-    if (ret != 0 || !file.exists(output_file_bam)) {
-      stop("ERROR CRÍTICO: samtools view falló para ", output_file_name)
-    }
-    
-    ## =========================
-    ## BAM -> SORTED BAM
-    ## =========================
-    message("#### BAM -> SORTED BAM ####")
-    
+    ## Sort
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
-    
-    ret <- system2(
-      command = gatk_bin,
+    system2(
+      gatk_bin,
       args = c(
         "SortSam",
-        "-CREATE_INDEX", "true",
-        "-INPUT",  output_file_bam,
-        "-OUTPUT", output_file_sorted_bam,
+        "-I", bam_file,
+        "-O", sorted_bam,
         "-SORT_ORDER", "coordinate",
-        "-VALIDATION_STRINGENCY", "STRICT"
+        "-CREATE_INDEX", "true"
       )
     )
-    
-    if (ret != 0 || !file.exists(output_file_sorted_bam)) {
-      stop("ERROR CRÍTICO: SortSam falló para ", output_file_name)
-    }
-    
-  } else {
-    message("BAM ordenado ya existe")
   }
-  
-  ## =========================
-  ## 7) Verificación OBLIGATORIA del índice .bai
-  ## =========================
-  if (!file.exists(output_file_sorted_bai)) {
-    
-    message("Índice .bai no encontrado. Generando índice...")
-    
-    gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
-    
-    ret <- system2(
-      command = gatk_bin,
-      args = c(
-        "BuildBamIndex",
-        "-I", output_file_sorted_bam
-      )
-    )
-    
-    if (ret != 0 || !file.exists(output_file_sorted_bai)) {
-      stop(
-        "ERROR CRÍTICO: No se pudo generar el índice .bai para ",
-        basename(output_file_sorted_bam)
-      )
-    }
-  }
-  
-  message("BWA-MEM + SortSam completados correctamente (BAM + BAI verificados)")
 }
 
 
+add_read_groups <- function(output_dir, fastq_dir) {
+  
+  sample_id <- get_sample_name(fastq_dir)
+  bam_in <- file.path(output_dir, "mapping_output",
+                      paste0(sample_id, ".sorted.bam"))
+  
+  bam_out <- file.path(output_dir, "mapping_output",
+                       paste0(sample_id, ".sorted.rg.bam"))
+  
+  gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
+  
+  system2(
+    gatk_bin,
+    args = c(
+      "AddOrReplaceReadGroups",
+      "-I", bam_in,
+      "-O", bam_out,
+      "-RGID", sample_id,
+      "-RGSM", sample_id,
+      "-RGPL", "ILLUMINA",
+      "-RGLB", "lib1",
+      "-RGPU", "unit1",
+      "-CREATE_INDEX", "true"
+    )
+  )
+}
 
 markdups <- function(output_dir,
                      fastq_dir) {
@@ -240,15 +193,21 @@ markdups <- function(output_dir,
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
   
   ## =========================
-  ## 3) BAM ordenado de entrada
+  ## 3) BAM de entrada (CON Read Groups)
   ## =========================
   bam_file <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.bam")
+    paste0(output_file_name, ".sorted.rg.bam")
   )
   
+  bam_bai <- paste0(bam_file, ".bai")
+  
   if (!file.exists(bam_file)) {
-    stop("No existe BAM ordenado para MarkDuplicates: ", bam_file)
+    stop("No existe BAM con Read Groups para MarkDuplicates: ", bam_file)
+  }
+  
+  if (!file.exists(bam_bai)) {
+    stop("No existe índice .bai del BAM con Read Groups: ", bam_bai)
   }
   
   ## =========================
@@ -256,7 +215,7 @@ markdups <- function(output_dir,
   ## =========================
   mark_file <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.mark_dup.bam")
+    paste0(output_file_name, ".sorted.rg.mark_dup.bam")
   )
   
   mark_bai <- paste0(mark_file, ".bai")
@@ -266,7 +225,7 @@ markdups <- function(output_dir,
   ## =========================
   metrics_file <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.mark_dup.txt")
+    paste0(output_file_name, ".sorted.rg.mark_dup.txt")
   )
   
   ## =========================
@@ -274,7 +233,7 @@ markdups <- function(output_dir,
   ## =========================
   if (!file.exists(mark_file)) {
     
-    message("#### MarkDuplicates ####")
+    message("#### MarkDuplicates (con RG) ####")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
@@ -282,17 +241,20 @@ markdups <- function(output_dir,
       command = gatk_bin,
       args = c(
         "MarkDuplicates",
-        "-CREATE_INDEX", "true",
-        "--ASSUME_SORTED", "true",
         "-INPUT",  bam_file,
         "-OUTPUT", mark_file,
         "-M",      metrics_file,
+        "--ASSUME_SORTED", "true",
+        "--CREATE_INDEX", "true",
         "--VALIDATION_STRINGENCY", "STRICT"
       )
     )
     
     if (ret != 0 || !file.exists(mark_file)) {
-      stop("ERROR CRÍTICO: MarkDuplicates falló para la muestra ", output_file_name)
+      stop(
+        "ERROR CRÍTICO: MarkDuplicates falló para la muestra ",
+        output_file_name
+      )
     }
     
   } else {
