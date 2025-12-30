@@ -126,11 +126,15 @@ bwamem <- function(fastq_dir,
   if (!file.exists(output_file_sorted_bam)) {
     
     message("#### MAPPING (bwa mem) ####")
-    
-    rg <- paste0(
-      "@RG\\tID:", output_file_name,
-      "\\tSM:", output_file_name,
-      "\\tPL:ILLUMINA\\tLB:lib1\\tPU:unit1"
+    ## Read Group con TAB reales (OBLIGATORIO)
+    rg <- paste(
+      "@RG",
+      paste0("ID:", output_file_name),
+      paste0("SM:", output_file_name),
+      "PL:ILLUMINA",
+      "LB:lib1",
+      "PU:unit1",
+      sep = "\t"
     )
     
     ret <- system2(
