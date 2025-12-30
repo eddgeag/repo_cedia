@@ -183,9 +183,9 @@ markdups <- function(output_dir,
                      fastq_dir) {
   
   ## =========================
-  ## 1) Nombre base de la muestra (FUENTE ÚNICA)
+  ## 1) Nombre base de la muestra
   ## =========================
-  output_file_name <- get_sample_name(fastq_dir)
+  sample_id <- get_sample_name(fastq_dir)
   
   ## =========================
   ## 2) Directorio de mapeo
@@ -193,101 +193,84 @@ markdups <- function(output_dir,
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
   
   ## =========================
-  ## 3) BAM de entrada (CON Read Groups)
+  ## 3) BAM de entrada (con RG, ordenado)
   ## =========================
-  bam_file <- file.path(
+  bam_in <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.rg.bam")
+    paste0(sample_id, ".sorted.rg.bam")
   )
   
-  bam_bai <- paste0(bam_file, ".bai")
-  
-  if (!file.exists(bam_file)) {
-    stop("No existe BAM con Read Groups para MarkDuplicates: ", bam_file)
-  }
-  
-  if (!file.exists(bam_bai)) {
-    stop("No existe índice .bai del BAM con Read Groups: ", bam_bai)
+  if (!file.exists(bam_in)) {
+    stop("No existe BAM con Read Groups para MarkDuplicates: ", bam_in)
   }
   
   ## =========================
-  ## 4) BAM de salida con duplicados marcados
+  ## 4) BAM de salida
   ## =========================
-  mark_file <- file.path(
+  bam_out <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.rg.mark_dup.bam")
+    paste0(sample_id, ".sorted.rg.mark_dup.bam")
   )
   
-  mark_bai <- paste0(mark_file, ".bai")
+  bai_out <- paste0(bam_out, ".bai")
   
-  ## =========================
-  ## 5) Archivo de métricas
-  ## =========================
   metrics_file <- file.path(
     mapping_output_dir,
-    paste0(output_file_name, ".sorted.rg.mark_dup.txt")
+    paste0(sample_id, ".sorted.rg.mark_dup.txt")
   )
   
+  gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
+  
   ## =========================
-  ## 6) Ejecutar MarkDuplicates
+  ## 5) Ejecutar MarkDuplicates
   ## =========================
-  if (!file.exists(mark_file)) {
+  if (!file.exists(bam_out)) {
     
     message("#### MarkDuplicates (con RG) ####")
-    
-    gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
     ret <- system2(
       command = gatk_bin,
       args = c(
         "MarkDuplicates",
-        "-INPUT",  bam_file,
-        "-OUTPUT", mark_file,
-        "-M",      metrics_file,
+        "-INPUT", bam_in,
+        "-OUTPUT", bam_out,
+        "-M", metrics_file,
         "--ASSUME_SORTED", "true",
         "--CREATE_INDEX", "true",
         "--VALIDATION_STRINGENCY", "STRICT"
       )
     )
     
-    if (ret != 0 || !file.exists(mark_file)) {
-      stop(
-        "ERROR CRÍTICO: MarkDuplicates falló para la muestra ",
-        output_file_name
-      )
+    if (ret != 0 || !file.exists(bam_out)) {
+      stop("ERROR CRÍTICO: MarkDuplicates falló para la muestra ", sample_id)
     }
-    
   } else {
     message("BAM con duplicados ya existe")
   }
   
   ## =========================
-  ## 7) Verificación OBLIGATORIA del índice .bai
+  ## 6) Verificación OBLIGATORIA del índice del BAM FINAL
   ## =========================
-  if (!file.exists(mark_bai)) {
+  if (!file.exists(bai_out)) {
     
     message("Índice .bai no encontrado. Generando índice...")
     
-    gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
-    
     ret <- system2(
       command = gatk_bin,
-      args = c(
-        "BuildBamIndex",
-        "-I", mark_file
-      )
+      args = c("BuildBamIndex", "-I", bam_out)
     )
     
-    if (ret != 0 || !file.exists(mark_bai)) {
+    if (ret != 0 || !file.exists(bai_out)) {
       stop(
         "ERROR CRÍTICO: No se pudo generar el índice .bai para ",
-        basename(mark_file)
+        basename(bam_out)
       )
     }
   }
   
   message("MarkDuplicates completado correctamente (BAM + BAI verificados)")
 }
+
 
 
 
