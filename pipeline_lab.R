@@ -211,11 +211,7 @@ markdups <- function(output_dir,
   )
   
   ## Aceptar AMBOS nombres de índice
-  bai_candidates <- c(
-    paste0(bam_out, ".bai"),                                 # .bam.bai
-    file.path(dirname(bam_out),                              
-              paste0(tools::file_path_sans_ext(basename(bam_out)), ".bai"))  # .bai
-  )
+  bai_file <- paste0(bam_out, ".bai")# .bam.bai
   
   metrics_file <- file.path(
     mapping_output_dir,
@@ -251,13 +247,13 @@ markdups <- function(output_dir,
   
   ## ---------- Espera activa (NAS-safe) ----------
   waited <- 0
-  while (!any(file.exists(bai_candidates)) && waited < wait_seconds) {
+  while (!any(file.exists(bai_file)) && waited < wait_seconds) {
     Sys.sleep(1)
     waited <- waited + 1
   }
   
   ## ---------- Crear índice solo si NO existe en ningún formato ----------
-  if (!any(file.exists(bai_candidates))) {
+  if (!file.exists(bai_file)) {
     
     message("Índice .bai no detectado, generando explícitamente...")
     
@@ -272,11 +268,11 @@ markdups <- function(output_dir,
   }
   
   ## ---------- Verificación final ----------
-  if (!any(file.exists(bai_candidates))) {
+  if (!file.exists(bai_file)) {
     stop(
       "ERROR CRÍTICO: el índice .bai NO existe tras todos los intentos.\n",
       "Buscados:\n",
-      paste(" -", bai_candidates, collapse = "\n")
+      paste(" -", bai_file, collapse = "\n")
     )
   }
   
