@@ -378,8 +378,9 @@ base_recalibrator <- function(folder_fasta,
     mapping_output_dir,
     paste0(output_file_name, ".sorted.rg.mark_dup.bam")
   )
-  
-  bam_bai <- paste0(bam_file, ".bai")
+  bam_bai <-  file.path(dirname(bam_file),                              
+            paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
+   
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM con duplicados marcados: ", bam_file)
@@ -464,7 +465,9 @@ applybqsr <- function(folder_fasta,
     paste0(sample_id, ".sorted.rg.mark_dup.bam")
   )
   
-  bam_in_bai <- paste0(bam_in, ".bai")
+  bam_in_bai <- file.path(dirname(bam_in),                              
+                                       paste0(tools::file_path_sans_ext(basename(bam_in)), ".bai"))  # .bai
+  
   
   if (!file.exists(bam_in)) {
     stop("No existe el BAM de entrada para ApplyBQSR: ", bam_in)
@@ -497,7 +500,9 @@ applybqsr <- function(folder_fasta,
     paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
   )
   
-  bam_out_bai <- paste0(bam_out, ".bai")
+  bam_out_bai <-  file.path(dirname(bam_out),                              
+                            paste0(tools::file_path_sans_ext(basename(bam_out)), ".bai"))  # .bai
+  
   
   gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
   
@@ -576,7 +581,8 @@ bam_statistics <- function(folder_fasta,
     paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
   )
   
-  bam_bai <- paste0(bam_file, ".bai")
+  bam_bai <- file.path(dirname(bam_file),                              
+                          paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM final con BQSR: ", bam_file)
@@ -678,7 +684,9 @@ haplotype_caller <- function(output_dir,
     paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
   )
   
-  bam_bai <- paste0(bam_file, ".bai")
+  bam_bai <-file.path(dirname(bam_file),                              
+                      paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
+  
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM BQSR para HaplotypeCaller: ", bam_file)
