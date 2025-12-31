@@ -178,9 +178,9 @@ add_read_groups <- function(output_dir, fastq_dir) {
     )
   )
 }
-
 markdups <- function(output_dir,
-                     fastq_dir) {
+                     fastq_dir,
+                     wait_seconds = 10) {
   
   sample_id <- get_sample_name(fastq_dir)
   
@@ -193,6 +193,16 @@ markdups <- function(output_dir,
   
   if (!file.exists(bam_in)) {
     stop("No existe BAM con Read Groups: ", bam_in)
+  }
+  
+  ## --------- Verificar que YA tiene RG (no rehacer nada) ----------
+  rg_check <- system(
+    paste("samtools view -H", shQuote(bam_in), "| grep '^@RG'"),
+    intern = TRUE
+  )
+  
+  if (length(rg_check) == 0) {
+    stop("ERROR CRÍTICO: el BAM de entrada NO contiene Read Groups: ", bam_in)
   }
   
   bam_out <- file.path(
@@ -209,7 +219,7 @@ markdups <- function(output_dir,
   
   gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
   
-  ## ---------- MarkDuplicates ----------
+  ## ---------- MarkDuplicates (solo si NO existe) ----------
   if (!file.exists(bam_out)) {
     
     message("#### MarkDuplicates (con RG) ####")
@@ -230,12 +240,41 @@ markdups <- function(output_dir,
     if (ret != 0 || !file.exists(bam_out)) {
       stop("ERROR CRÍTICO: MarkDuplicates falló para ", sample_id)
     }
+  } else {
+    message("MarkDuplicates ya ejecutado, reutilizando BAM existente")
   }
   
-  ## ---------- Verificación final ----------
+  ## ---------- Espera activa por el índice (NAS-safe) ----------
+  if (!file.exists(bai_out)) {
+    
+    message("Esperando índice .bai (latencia NAS)...")
+    
+    waited <- 0
+    while (!file.exists(bai_out) && waited < wait_seconds) {
+      Sys.sleep(1)
+      waited <- waited + 1
+    }
+  }
+  
+  ## ---------- Crear índice SOLO si sigue sin existir ----------
+  if (!file.exists(bai_out)) {
+    
+    message("Índice .bai no detectado, generando explícitamente...")
+    
+    ret <- system2(
+      gatk_bin,
+      args = c("BuildBamIndex", "-I", bam_out)
+    )
+    
+    if (ret != 0) {
+      stop("ERROR CRÍTICO: BuildBamIndex falló para ", bam_out)
+    }
+  }
+  
+  ## ---------- Verificación final dura ----------
   if (!file.exists(bai_out)) {
     stop(
-      "ERROR CRÍTICO: MarkDuplicates terminó pero el índice .bai no existe: ",
+      "ERROR CRÍTICO: el índice .bai NO existe tras todos los intentos: ",
       bai_out
     )
   }
