@@ -2460,6 +2460,7 @@ compute_stats <- function(fastq_dir, output_dir, muestra) {
 
 
 
+#================main============#
 
 
 start <- Sys.time()
@@ -2521,9 +2522,12 @@ genotypeGVCF(folder_fasta, output_dir, fastq_dir)
 ## primer filtraje
 variantFiltration(folder_fasta, output_dir, fastq_dir)
 ## preparamos el archivo listo para elanalisis
-analysisReady(folder_fasta, output_dir, fastq_dir)
+analysisReady(output_dir = output_dir, fastq_dir = fastq_dir )
 ##
-anotation(folder_fasta, path_snpeff, output_dir, fastq_dir)
+anotation(folder_fasta = folder_fasta ,
+          path_snpeff = path_snpeff ,
+          output_dir = output_dir ,
+          fastq_dir = fastq_dirs)
 
 # process_vcf_to_table(
 #   folder_fasta = folder_fasta,
