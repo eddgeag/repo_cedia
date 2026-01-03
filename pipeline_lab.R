@@ -1039,10 +1039,8 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   ## 9) Hard-filter INDELs
   ## =========================
-  ## =========================
-  ## 9) Hard-filter INDELs (SEGURO)
-  ## =========================
   if (!file.exists(indels_filt_vcf)) {
+    
     args_indels <- c(
       "VariantFiltration",
       "-R", fasta_file,
@@ -1050,28 +1048,32 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "-O", indels_filt_vcf,
       
       "--filter-name", "QD2",
-      "--filter-expression", "QD < 2.0",
+      "--filter-expression", "QD<2.0",
       
       "--filter-name", "FS200",
-      "--filter-expression", "FS > 200.0",
+      "--filter-expression", "FS>200.0",
       
       "--filter-name", "RPRS20",
-      "--filter-expression", "ReadPosRankSum < -20.0",
+      "--filter-expression", "ReadPosRankSum<-20.0",
       
       "--filter-name", "SOR10",
-      "--filter-expression", "SOR > 10.0"
+      "--filter-expression", "SOR>10.0"
     )
     
-    system2(gatk_bin, args = args_indels)
+    ## imprimir comando (debug)
+    cat("\n### GATK VariantFiltration (INDELs) ###\n")
+    cat(paste(shQuote(gatk_bin), paste(shQuote(args_indels), collapse = " ")), "\n")
     
-    if (!is.null(ret) && ret != 0) {
-      warning("GATK VariantFiltration (INDELs) retornó código: ", ret)
-    }
+    system2(gatk_bin, args = args_indels)
   }
   
   if (!file.exists(indels_filt_vcf)) {
-    stop("ERROR CRÍTICO: VariantFiltration INDELs no generó archivo: ", indels_filt_vcf)
+    stop(
+      "ERROR CRÍTICO: VariantFiltration INDELs no generó archivo: ",
+      indels_filt_vcf
+    )
   }
+  
   
   
   ## =========================
