@@ -1,9 +1,21 @@
-load.libs <- c("data.table","tools","dplyr","tidyr","ggplot2","stringr","xtable",
-               "VariantAnnotation","tibble","GenomicRanges","S4Vectors","ggpubr")
+load.libs <- c(
+  "data.table",
+  "tools",
+  "dplyr",
+  "tidyr",
+  "ggplot2",
+  "stringr",
+  "xtable",
+  "VariantAnnotation",
+  "tibble",
+  "GenomicRanges",
+  "S4Vectors",
+  "ggpubr"
+)
 invisible(lapply(load.libs, require, character.only = TRUE))
 
-get_sample_name <- function(fastq_dir){
-  fq <- list.files(fastq_dir, pattern="\\.fq\\.gz$", full.names = FALSE)
+get_sample_name <- function(fastq_dir) {
+  fq <- list.files(fastq_dir, pattern = "\\.fq\\.gz$", full.names = FALSE)
   r1 <- fq[grepl("_R1\\.fq\\.gz$", fq)]
   stopifnot(length(r1) == 1)
   
@@ -14,27 +26,17 @@ get_sample_name <- function(fastq_dir){
 
 
 control_calidad <- function(fastq_dir, output_dir) {
-  
   qc_dir <- file.path(output_dir, "QC")
   dir.create(qc_dir, showWarnings = FALSE, recursive = TRUE)
   
   if (length(list.files(qc_dir)) == 0) {
-    
-    fastq_files <- list.files(
-      fastq_dir,
-      pattern = "\\.(fq|fastq)\\.gz$",
-      full.names = TRUE
-    )
+    fastq_files <- list.files(fastq_dir, pattern = "\\.(fq|fastq)\\.gz$", full.names = TRUE)
     
     if (length(fastq_files) == 0) {
       stop("No se encontraron FASTQ en: ", fastq_dir)
     }
     
-    command <- paste(
-      "fastqc -t 4",
-      paste(fastq_files, collapse = " "),
-      "-o", qc_dir
-    )
+    command <- paste("fastqc -t 4", paste(fastq_files, collapse = " "), "-o", qc_dir)
     
     system(command)
     
@@ -45,9 +47,16 @@ control_calidad <- function(fastq_dir, output_dir) {
 
 
 fn_exists_fasta <- function(folder_fasta) {
-  fasta_files <- list.files(folder_fasta, pattern="\\.(fa|fasta)$", full.names=TRUE)
-  if (length(fasta_files) == 0) stop("No existe archivo de referencia (.fa/.fasta) en: ", folder_fasta)
-  if (length(fasta_files) > 1)  stop("Hay más de un FASTA en: ", folder_fasta, "\n", paste(basename(fasta_files), collapse=", "))
+  fasta_files <- list.files(folder_fasta, pattern = "\\.(fa|fasta)$", full.names =
+                              TRUE)
+  if (length(fasta_files) == 0)
+    stop("No existe archivo de referencia (.fa/.fasta) en: ",
+         folder_fasta)
+  if (length(fasta_files) > 1)
+    stop("Hay más de un FASTA en: ",
+         folder_fasta,
+         "\n",
+         paste(basename(fasta_files), collapse = ", "))
   fasta_files[[1]]
 }
 
@@ -55,27 +64,28 @@ fn_exists_fasta <- function(folder_fasta) {
 
 index_fasta_samtools <- function(folder_fasta) {
   fasta_file <- fn_exists_fasta(folder_fasta)
-  if (length(list.files(folder_fasta, pattern="\\.fai$", full.names=TRUE)) == 0) {
+  if (length(list.files(folder_fasta, pattern = "\\.fai$", full.names =
+                        TRUE)) == 0) {
     cmd <- paste("samtools faidx", shQuote(fasta_file))
-    print(cmd); system(cmd)
-  } else message("Ya esta el index fai")
+    print(cmd)
+    system(cmd)
+  } else
+    message("Ya esta el index fai")
 }
 
 
 index_bwa <- function(folder_fasta) {
   fasta_file <- fn_exists_fasta(folder_fasta)
-  exts <- c("amb","ann","bwt","pac","sa")
+  exts <- c("amb", "ann", "bwt", "pac", "sa")
   expected <- paste0(fasta_file, ".", exts)
   if (!all(file.exists(expected))) {
     message("Creando índices BWA...")
     system(paste("bwa index", shQuote(fasta_file)))
-  } else message("Ya existen los índices BWA")
+  } else
+    message("Ya existen los índices BWA")
 }
 
-bwamem <- function(fastq_dir,
-                   folder_fasta,
-                   output_dir) {
-  
+bwamem <- function(fastq_dir, folder_fasta, output_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
@@ -103,7 +113,9 @@ bwamem <- function(fastq_dir,
   ## 4) Output dirs
   ## =========================
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
-  dir.create(mapping_output_dir, recursive = TRUE, showWarnings = FALSE)
+  dir.create(mapping_output_dir,
+             recursive = TRUE,
+             showWarnings = FALSE)
   
   sam_file <- file.path(mapping_output_dir, paste0(sample_id, ".sam"))
   bam_file <- file.path(mapping_output_dir, paste0(sample_id, ".bam"))
@@ -113,15 +125,11 @@ bwamem <- function(fastq_dir,
   ## 5) BWA MEM (SIN RG)
   ## =========================
   if (!file.exists(sorted_bam)) {
-    
     message("#### MAPPING (bwa mem, sin RG) ####")
     
     ret <- system2(
       "bwa",
-      args = c(
-        "mem", "-M", "-t", "8",
-        fasta_file, r1, r2
-      ),
+      args = c("mem", "-M", "-t", "8", fasta_file, r1, r2),
       stdout = sam_file
     )
     
@@ -142,10 +150,14 @@ bwamem <- function(fastq_dir,
       gatk_bin,
       args = c(
         "SortSam",
-        "-I", bam_file,
-        "-O", sorted_bam,
-        "-SORT_ORDER", "coordinate",
-        "-CREATE_INDEX", "true"
+        "-I",
+        bam_file,
+        "-O",
+        sorted_bam,
+        "-SORT_ORDER",
+        "coordinate",
+        "-CREATE_INDEX",
+        "true"
       )
     )
   }
@@ -153,97 +165,97 @@ bwamem <- function(fastq_dir,
 
 
 add_read_groups <- function(output_dir, fastq_dir) {
-  
   sample_id <- get_sample_name(fastq_dir)
-  bam_in <- file.path(output_dir, "mapping_output",
+  bam_in <- file.path(output_dir,
+                      "mapping_output",
                       paste0(sample_id, ".sorted.bam"))
   
-  bam_out <- file.path(output_dir, "mapping_output",
+  bam_out <- file.path(output_dir,
+                       "mapping_output",
                        paste0(sample_id, ".sorted.rg.bam"))
   
   gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
   
-  if(!file.exists(bam_out)){
-    
+  if (!file.exists(bam_out)) {
     system2(
       gatk_bin,
       args = c(
         "AddOrReplaceReadGroups",
-        "-I", bam_in,
-        "-O", bam_out,
-        "-RGID", sample_id,
-        "-RGSM", sample_id,
-        "-RGPL", "ILLUMINA",
-        "-RGLB", "lib1",
-        "-RGPU", "unit1",
-        "-CREATE_INDEX", "true"
+        "-I",
+        bam_in,
+        "-O",
+        bam_out,
+        "-RGID",
+        sample_id,
+        "-RGSM",
+        sample_id,
+        "-RGPL",
+        "ILLUMINA",
+        "-RGLB",
+        "lib1",
+        "-RGPU",
+        "unit1",
+        "-CREATE_INDEX",
+        "true"
       )
     )
-  }else{
-    
+  } else{
     message("Ya se asigno el RG")
   }
-
-}
-markdups <- function(output_dir,
-                     fastq_dir,
-                     wait_seconds = 10) {
   
+}
+markdups <- function(output_dir, fastq_dir, wait_seconds = 10) {
   sample_id <- get_sample_name(fastq_dir)
   
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
   
-  bam_in <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.bam")
-  )
+  bam_in <- file.path(mapping_output_dir, paste0(sample_id, ".sorted.rg.bam"))
   
   if (!file.exists(bam_in)) {
     stop("No existe BAM con Read Groups: ", bam_in)
   }
   
   ## ---------- Verificar Read Groups ----------
-  rg_check <- system(
-    paste("samtools view -H", shQuote(bam_in), "| grep '^@RG'"),
-    intern = TRUE
-  )
+  rg_check <- system(paste("samtools view -H", shQuote(bam_in), "| grep '^@RG'"), intern = TRUE)
   
   if (length(rg_check) == 0) {
-    stop("ERROR CRÍTICO: el BAM de entrada NO contiene Read Groups: ", bam_in)
+    stop("ERROR CRÍTICO: el BAM de entrada NO contiene Read Groups: ",
+         bam_in)
   }
   
-  bam_out <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup.bam")
-  )
+  bam_out <- file.path(mapping_output_dir,
+                       paste0(sample_id, ".sorted.rg.mark_dup.bam"))
   
   ## Aceptar AMBOS nombres de índice
-  bai_file <- file.path(dirname(bam_out),                              
-              paste0(tools::file_path_sans_ext(basename(bam_out)), ".bai"))  # .bai
+  bai_file <- file.path(dirname(bam_out),
+                        paste0(tools::file_path_sans_ext(basename(bam_out)), ".bai"))  # .bai
   
   
-  metrics_file <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup.txt")
-  )
+  metrics_file <- file.path(mapping_output_dir,
+                            paste0(sample_id, ".sorted.rg.mark_dup.txt"))
   
   gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
   
   ## ---------- MarkDuplicates ----------
   if (!file.exists(bam_out)) {
-    
     message("#### MarkDuplicates (con RG) ####")
     
     ret <- system2(
       gatk_bin,
       args = c(
         "MarkDuplicates",
-        "-INPUT", bam_in,
-        "-OUTPUT", bam_out,
-        "-M", metrics_file,
-        "--ASSUME_SORTED", "true",
-        "--CREATE_INDEX", "true",
-        "--VALIDATION_STRINGENCY", "STRICT"
+        "-INPUT",
+        bam_in,
+        "-OUTPUT",
+        bam_out,
+        "-M",
+        metrics_file,
+        "--ASSUME_SORTED",
+        "true",
+        "--CREATE_INDEX",
+        "true",
+        "--VALIDATION_STRINGENCY",
+        "STRICT"
       )
     )
     
@@ -263,13 +275,9 @@ markdups <- function(output_dir,
   
   ## ---------- Crear índice solo si NO existe en ningún formato ----------
   if (!any(file.exists(bai_file))) {
-    
     message("Índice .bai no detectado, generando explícitamente...")
     
-    ret <- system2(
-      gatk_bin,
-      args = c("BuildBamIndex", "-I", bam_out)
-    )
+    ret <- system2(gatk_bin, args = c("BuildBamIndex", "-I", bam_out))
     
     if (ret != 0) {
       stop("ERROR CRÍTICO: BuildBamIndex falló para ", bam_out)
@@ -292,22 +300,17 @@ markdups <- function(output_dir,
 
 
 create_dict <- function(folder_fasta) {
-  
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
   fasta_file <- path.expand(fn_exists_fasta(folder_fasta))
   
-  fasta_dict <- paste0(
-    tools::file_path_sans_ext(fasta_file),
-    ".dict"
-  )
+  fasta_dict <- paste0(tools::file_path_sans_ext(fasta_file), ".dict")
   
   ## =========================
   ## 2) Crear diccionario si no existe
   ## =========================
   if (!file.exists(fasta_dict)) {
-    
     message("Creando diccionario de referencia (.dict)...")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
@@ -316,16 +319,16 @@ create_dict <- function(folder_fasta) {
       command = gatk_bin,
       args = c(
         "CreateSequenceDictionary",
-        "-R", fasta_file,
-        "-O", fasta_dict
+        "-R",
+        fasta_file,
+        "-O",
+        fasta_dict
       )
     )
     
     if (ret != 0 || !file.exists(fasta_dict)) {
-      stop(
-        "ERROR CRÍTICO: No se pudo crear el diccionario FASTA: ",
-        fasta_dict
-      )
+      stop("ERROR CRÍTICO: No se pudo crear el diccionario FASTA: ",
+           fasta_dict)
     }
     
   } else {
@@ -339,7 +342,6 @@ base_recalibrator <- function(folder_fasta,
                               output_dir,
                               folder_data_gatk,
                               fastq_dir) {
-  
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
@@ -381,13 +383,11 @@ base_recalibrator <- function(folder_fasta,
   ## =========================
   ## 5) BAM de entrada (MarkDuplicates)
   ## =========================
-  bam_file <- file.path(
-    mapping_output_dir,
-    paste0(output_file_name, ".sorted.rg.mark_dup.bam")
-  )
-  bam_bai <-  file.path(dirname(bam_file),                              
-            paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
-   
+  bam_file <- file.path(mapping_output_dir,
+                        paste0(output_file_name, ".sorted.rg.mark_dup.bam"))
+  bam_bai <-  file.path(dirname(bam_file),
+                        paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
+  
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM con duplicados marcados: ", bam_file)
@@ -400,25 +400,18 @@ base_recalibrator <- function(folder_fasta,
   ## =========================
   ## 6) Tabla de salida BQSR
   ## =========================
-  out_file <- file.path(
-    mapping_output_dir,
-    paste0(output_file_name, ".recal_data.table")
-  )
+  out_file <- file.path(mapping_output_dir,
+                        paste0(output_file_name, ".recal_data.table"))
   
   ## =========================
   ## 7) Ejecutar BaseRecalibrator
   ## =========================
   if (!file.exists(out_file)) {
-    
     message("#### BaseRecalibrator ####")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
-    args <- c(
-      "BaseRecalibrator",
-      "-I", bam_file,
-      "-R", fasta_file
-    )
+    args <- c("BaseRecalibrator", "-I", bam_file, "-R", fasta_file)
     
     ## one --known-sites per file (FORMA CORRECTA)
     for (ks in known_sites_files) {
@@ -427,16 +420,11 @@ base_recalibrator <- function(folder_fasta,
     
     args <- c(args, "-O", out_file)
     
-    ret <- system2(
-      command = gatk_bin,
-      args = args
-    )
+    ret <- system2(command = gatk_bin, args = args)
     
     if (ret != 0 || !file.exists(out_file)) {
-      stop(
-        "ERROR CRÍTICO: BaseRecalibrator falló para la muestra ",
-        output_file_name
-      )
+      stop("ERROR CRÍTICO: BaseRecalibrator falló para la muestra ",
+           output_file_name)
     }
     
   } else {
@@ -445,10 +433,7 @@ base_recalibrator <- function(folder_fasta,
 }
 
 
-applybqsr <- function(folder_fasta,
-                      output_dir,
-                      fastq_dir) {
-  
+applybqsr <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
@@ -467,13 +452,11 @@ applybqsr <- function(folder_fasta,
   ## =========================
   ## 4) BAM de entrada (MarkDuplicates + RG)
   ## =========================
-  bam_in <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup.bam")
-  )
+  bam_in <- file.path(mapping_output_dir,
+                      paste0(sample_id, ".sorted.rg.mark_dup.bam"))
   
-  bam_in_bai <- file.path(dirname(bam_in),                              
-                                       paste0(tools::file_path_sans_ext(basename(bam_in)), ".bai"))  # .bai
+  bam_in_bai <- file.path(dirname(bam_in),
+                          paste0(tools::file_path_sans_ext(basename(bam_in)), ".bai"))  # .bai
   
   
   if (!file.exists(bam_in)) {
@@ -487,14 +470,12 @@ applybqsr <- function(folder_fasta,
   ## =========================
   ## 5) Tabla BQSR
   ## =========================
-  recal_table <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".recal_data.table")
-  )
+  recal_table <- file.path(mapping_output_dir, paste0(sample_id, ".recal_data.table"))
   
   if (!file.exists(recal_table)) {
     stop(
-      "No existe la tabla BQSR: ", recal_table,
+      "No existe la tabla BQSR: ",
+      recal_table,
       "\n¿Ejecutaste base_recalibrator() antes?"
     )
   }
@@ -502,12 +483,10 @@ applybqsr <- function(folder_fasta,
   ## =========================
   ## 6) BAM de salida (BQSR aplicado)
   ## =========================
-  bam_out <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
-  )
+  bam_out <- file.path(mapping_output_dir,
+                       paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam"))
   
-  bam_out_bai <-  file.path(dirname(bam_out),                              
+  bam_out_bai <-  file.path(dirname(bam_out),
                             paste0(tools::file_path_sans_ext(basename(bam_out)), ".bai"))  # .bai
   
   
@@ -517,17 +496,20 @@ applybqsr <- function(folder_fasta,
   ## 7) Ejecutar ApplyBQSR
   ## =========================
   if (!file.exists(bam_out)) {
-    
     message("#### ApplyBQSR ####")
     
     ret <- system2(
       gatk_bin,
       args = c(
         "ApplyBQSR",
-        "-I", bam_in,
-        "-R", fasta_file,
-        "--bqsr-recal-file", recal_table,
-        "-O", bam_out
+        "-I",
+        bam_in,
+        "-R",
+        fasta_file,
+        "--bqsr-recal-file",
+        recal_table,
+        "-O",
+        bam_out
       )
     )
     
@@ -542,29 +524,20 @@ applybqsr <- function(folder_fasta,
   ## 8) Índice obligatorio (.bai)
   ## =========================
   if (!file.exists(bam_out_bai)) {
-    
     message("Índice .bai no encontrado. Generando índice...")
     
-    ret <- system2(
-      gatk_bin,
-      args = c("BuildBamIndex", "-I", bam_out)
-    )
+    ret <- system2(gatk_bin, args = c("BuildBamIndex", "-I", bam_out))
     
     if (ret != 0 || !file.exists(bam_out_bai)) {
-      stop(
-        "ERROR CRÍTICO: No se pudo generar el índice .bai para ",
-        basename(bam_out)
-      )
+      stop("ERROR CRÍTICO: No se pudo generar el índice .bai para ",
+           basename(bam_out))
     }
   }
   
   message("ApplyBQSR completado correctamente (BAM + BAI verificados)")
 }
 
-bam_statistics <- function(folder_fasta,
-                           fastq_dir,
-                           output_dir) {
-  
+bam_statistics <- function(folder_fasta, fastq_dir, output_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
@@ -583,13 +556,11 @@ bam_statistics <- function(folder_fasta,
   ## =========================
   ## 4) BAM final (BQSR aplicado + RG)
   ## =========================
-  bam_file <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
-  )
+  bam_file <- file.path(mapping_output_dir,
+                        paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam"))
   
-  bam_bai <- file.path(dirname(bam_file),                              
-                          paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
+  bam_bai <- file.path(dirname(bam_file),
+                       paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM final con BQSR: ", bam_file)
@@ -602,11 +573,7 @@ bam_statistics <- function(folder_fasta,
   ## =========================
   ## 5) Directorio de salida de métricas
   ## =========================
-  out_dir <- path.expand(file.path(
-    output_dir,
-    "bam_metrics",
-    sample_id
-  ))
+  out_dir <- path.expand(file.path(output_dir, "bam_metrics", sample_id))
   dir.create(out_dir, recursive = TRUE, showWarnings = FALSE)
   
   ## =========================
@@ -622,24 +589,24 @@ bam_statistics <- function(folder_fasta,
   ## 7) CollectMultipleMetrics
   ## =========================
   if (!file.exists(expected_file)) {
-    
     message("#### CollectMultipleMetrics ####")
     
     ret <- system2(
       gatk_bin,
       args = c(
         "CollectMultipleMetrics",
-        "-R", fasta_file,
-        "-I", bam_file,
-        "-O", out_prefix
+        "-R",
+        fasta_file,
+        "-I",
+        bam_file,
+        "-O",
+        out_prefix
       )
     )
     
     if (ret != 0 || !file.exists(expected_file)) {
-      stop(
-        "ERROR CRÍTICO: CollectMultipleMetrics falló para la muestra ",
-        sample_id
-      )
+      stop("ERROR CRÍTICO: CollectMultipleMetrics falló para la muestra ",
+           sample_id)
     }
     
     ## =========================
@@ -647,10 +614,7 @@ bam_statistics <- function(folder_fasta,
     ## =========================
     message("#### MultiQC ####")
     
-    ret_mqc <- system2(
-      "multiqc",
-      args = c(out_dir, "-o", out_dir)
-    )
+    ret_mqc <- system2("multiqc", args = c(out_dir, "-o", out_dir))
     
     if (ret_mqc != 0) {
       stop("ERROR CRÍTICO: MultiQC falló para ", sample_id)
@@ -664,10 +628,7 @@ bam_statistics <- function(folder_fasta,
 }
 
 
-haplotype_caller <- function(output_dir,
-                             folder_fasta,
-                             fastq_dir) {
-  
+haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
@@ -686,13 +647,11 @@ haplotype_caller <- function(output_dir,
   ## =========================
   ## 4) BAM de entrada (BQSR aplicado + RG)
   ## =========================
-  bam_file <- file.path(
-    mapping_output_dir,
-    paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
-  )
+  bam_file <- file.path(mapping_output_dir,
+                        paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam"))
   
-  bam_bai <-file.path(dirname(bam_file),                              
-                      paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
+  bam_bai <- file.path(dirname(bam_file),
+                       paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
   
   
   if (!file.exists(bam_file)) {
@@ -709,10 +668,7 @@ haplotype_caller <- function(output_dir,
   out_dir <- path.expand(file.path(output_dir, "variantCalling"))
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
-  out_file <- file.path(
-    out_dir,
-    paste0(sample_id, ".g.vcf.gz")
-  )
+  out_file <- file.path(out_dir, paste0(sample_id, ".g.vcf.gz"))
   
   out_tbi <- paste0(out_file, ".tbi")
   
@@ -720,7 +676,6 @@ haplotype_caller <- function(output_dir,
   ## 6) Ejecutar HaplotypeCaller (GVCF)
   ## =========================
   if (!file.exists(out_file)) {
-    
     message("#### HaplotypeCaller (GVCF) ####")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
@@ -729,19 +684,22 @@ haplotype_caller <- function(output_dir,
       gatk_bin,
       args = c(
         "HaplotypeCaller",
-        "-I", bam_file,
-        "-R", fasta_file,
-        "-ERC", "GVCF",
-        "--native-pair-hmm-threads", "8",
-        "-O", out_file
+        "-I",
+        bam_file,
+        "-R",
+        fasta_file,
+        "-ERC",
+        "GVCF",
+        "--native-pair-hmm-threads",
+        "8",
+        "-O",
+        out_file
       )
     )
     
     if (ret != 0 || !file.exists(out_file)) {
-      stop(
-        "ERROR CRÍTICO: HaplotypeCaller falló para la muestra ",
-        sample_id
-      )
+      stop("ERROR CRÍTICO: HaplotypeCaller falló para la muestra ",
+           sample_id)
     }
     
   } else {
@@ -752,21 +710,15 @@ haplotype_caller <- function(output_dir,
   ## 7) Verificación OBLIGATORIA del índice .tbi
   ## =========================
   if (!file.exists(out_tbi)) {
-    
     message("Índice .tbi no encontrado. Generando índice...")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
-    ret <- system2(
-      gatk_bin,
-      args = c("IndexFeatureFile", "-I", out_file)
-    )
+    ret <- system2(gatk_bin, args = c("IndexFeatureFile", "-I", out_file))
     
     if (ret != 0 || !file.exists(out_tbi)) {
-      stop(
-        "ERROR CRÍTICO: No se pudo generar el índice .tbi para ",
-        basename(out_file)
-      )
+      stop("ERROR CRÍTICO: No se pudo generar el índice .tbi para ",
+           basename(out_file))
     }
   }
   
@@ -774,10 +726,7 @@ haplotype_caller <- function(output_dir,
 }
 
 
-genotypeGVCF <- function(folder_fasta,
-                         output_dir,
-                         fastq_dir) {
-  
+genotypeGVCF <- function(folder_fasta, output_dir, fastq_dir) {
   fasta_file <- path.expand(fn_exists_fasta(folder_fasta))
   sample_id  <- get_sample_name(fastq_dir)
   
@@ -796,33 +745,29 @@ genotypeGVCF <- function(folder_fasta,
   file_out_tbi <- paste0(file_out, ".tbi")
   
   if (!file.exists(file_out)) {
-    
     message("#### GenotypeGVCFs ####")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "GenotypeGVCFs",
-        "-R", fasta_file,
-        "-V", file_in,
-        "-O", file_out
-      )
-    )
+    ret <- system2(gatk_bin,
+                   args = c(
+                     "GenotypeGVCFs",
+                     "-R",
+                     fasta_file,
+                     "-V",
+                     file_in,
+                     "-O",
+                     file_out
+                   ))
     
     if (ret != 0 || !file.exists(file_out))
       stop("ERROR CRÍTICO: GenotypeGVCFs falló para ", sample_id)
   }
   
   if (!file.exists(file_out_tbi)) {
-    
     message("Generando índice .tbi...")
     
-    ret <- system2(
-      gatk_bin,
-      args = c("IndexFeatureFile", "-I", file_out)
-    )
+    ret <- system2(gatk_bin, args = c("IndexFeatureFile", "-I", file_out))
     
     if (ret != 0 || !file.exists(file_out_tbi))
       stop("ERROR CRÍTICO: no se pudo generar índice .tbi")
@@ -836,117 +781,117 @@ genotypeGVCF <- function(folder_fasta,
 #                                 folder_fasta,
 #                                 folder_data_gatk,
 #                                 output_dir) {
-#   
+#
 #   ## FASTA de referencia
 #   fasta_file <- fn_exists_fasta(folder_fasta)
-#   
+#
 #   ## Nombre base de la muestra
 #   fastq_files <- list.files(fastq_dir, full.names = FALSE)
 #   output_file_name <-
 #     unlist(strsplit(gsub("R[12]", "map", fastq_files[1]), "/"))
 #   output_file_name <- file_path_sans_ext(output_file_name)
-#   
+#
 #   ## VCF de entrada (GenotypeGVCFs)
 #   in_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, "_apply_genotypeGVCF.g.vcf.gz")
 #   )
-#   
+#
 #   ## Archivos de salida (SNPs)
 #   snps_recal_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, ".snps.recal")
 #   )
-#   
+#
 #   tranches_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, ".snps.tranches")
 #   )
-#   
+#
 #   if (!file.exists(snps_recal_file) || !file.exists(tranches_file)) {
-#     
+#
 #     command <- paste(
 #       "~/tools/gatk-4.6.1.0/gatk VariantRecalibrator",
 #       "-R", fasta_file,
 #       "-V", in_file,
-#       
+#
 #       "--resource:hapmap,known=false,training=true,truth=true,prior=15.0",
 #       file.path(folder_data_gatk,
 #                 "resources_broad_hg38_v0_hapmap_3.3.hg38.vcf.gz"),
-#       
+#
 #       "--resource:omni,known=false,training=true,truth=true,prior=12.0",
 #       file.path(folder_data_gatk,
 #                 "resources_broad_hg38_v0_1000G_omni2.5.hg38.vcf.gz"),
-#       
+#
 #       "--resource:1000G,known=false,training=true,truth=false,prior=10.0",
 #       file.path(folder_data_gatk,
 #                 "resources_broad_hg38_v0_1000G_phase1.snps.high_confidence.hg38.vcf.gz"),
-#       
+#
 #       "--resource:dbsnp,known=true,training=false,truth=false,prior=2.0",
 #       file.path(folder_data_gatk,
 #                 "resources_broad_hg38_v0_Homo_sapiens_assembly38.dbsnp138.vcf"),
-#       
+#
 #       "-an QD -an MQRankSum -an ReadPosRankSum -an FS -an MQ -an SOR -an DP",
 #       "-mode SNP",
 #       "-O", snps_recal_file,
 #       "--tranches-file", tranches_file
 #     )
-#     
+#
 #     print(command)
 #     system(command)
-#     
+#
 #   } else {
 #     message("Ya se ha hecho el recalibrado VQSR de SNPs")
 #   }
 # }
 
-# 
+#
 # applyVQSR <- function(folder_fasta,
 #                       fastq_dir,
 #                       output_dir) {
-#   
+#
 #   ## FASTA de referencia
 #   fasta_file <- fn_exists_fasta(folder_fasta)
-#   
+#
 #   ## Nombre base de la muestra
 #   fastq_files <- list.files(fastq_dir, full.names = FALSE)
 #   output_file_name <-
 #     unlist(strsplit(gsub("R[12]", "map", fastq_files[1]), "/"))
 #   output_file_name <- file_path_sans_ext(output_file_name)
-#   
+#
 #   ## VCF de entrada (GenotypeGVCFs)
 #   in_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, "_apply_genotypeGVCF.g.vcf.gz")
 #   )
-#   
+#
 #   ## Archivos VQSR (generados por VariantRecalibrator)
 #   snps_recal_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, ".snps.recal")
 #   )
-#   
+#
 #   tranches_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, ".snps.tranches")
 #   )
-#   
+#
 #   ## Archivo de salida
 #   out_file <- file.path(
 #     output_dir,
 #     "variantCalling",
 #     paste0(output_file_name, ".snps.vqsr.vcf")
 #   )
-#   
+#
 #   ## Aplicar VQSR solo si no existe
 #   if (!file.exists(out_file)) {
-#     
+#
 #     command <- paste(
 #       "~/tools/gatk-4.6.1.0/gatk ApplyVQSR",
 #       "-R", fasta_file,
@@ -957,157 +902,200 @@ genotypeGVCF <- function(folder_fasta,
 #       "--recal-file", snps_recal_file,
 #       "-mode SNP"
 #     )
-#     
+#
 #     print(command)
 #     system(command)
-#     
+#
 #   } else {
 #     message("Ya se ha aplicado VQSR (SNPs)")
 #   }
-#   
+#
 # }
-variantFiltration <- function(folder_fasta,
-                              output_dir,
-                              fastq_dir) {
-
+variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
   fasta_file <- fn_exists_fasta(folder_fasta)
-
+  
   ## =========================
   ## 2) Nombre base de la muestra (FUENTE ÚNICA)
   ## =========================
   output_file_name <- get_sample_name(fastq_dir)
-
+  
   ## =========================
   ## 3) Directorio de variantes
   ## =========================
   var_dir <- file.path(output_dir, "variantCalling")
-
+  
   ## =========================
   ## 4) VCF de entrada (GenotypeGVCFs)
   ## =========================
-  in_vcf <- file.path(
-    var_dir,
-    paste0(output_file_name, "_sample.raw.vcf.gz")
-  )
+  in_vcf <- file.path(var_dir, paste0(output_file_name, "_sample.raw.vcf.gz"))
   
   if (!file.exists(in_vcf)) {
     stop("No existe el VCF de entrada para hard-filter: ", in_vcf)
   }
-
+  
   ## =========================
   ## 5) Archivos intermedios
   ## =========================
   snps_vcf        <- file.path(var_dir, paste0(output_file_name, ".snps.vcf"))
   indels_vcf      <- file.path(var_dir, paste0(output_file_name, ".indels.vcf"))
-
-  snps_filt_vcf   <- file.path(var_dir, paste0(output_file_name, ".snps.hardfiltered.vcf"))
-  indels_filt_vcf <- file.path(var_dir, paste0(output_file_name, ".indels.hardfiltered.vcf"))
-
+  
+  snps_filt_vcf   <- file.path(var_dir,
+                               paste0(output_file_name, ".snps.hardfiltered.vcf"))
+  indels_filt_vcf <- file.path(var_dir,
+                               paste0(output_file_name, ".indels.hardfiltered.vcf"))
+  
   merged_vcf      <- file.path(var_dir, paste0(output_file_name, ".hardfiltered.vcf"))
-
+  
   ## =========================
   ## 6) Seleccionar SNPs
   ## =========================
   if (!file.exists(snps_vcf)) {
     cmd_snps <- paste(
       "~/tools/gatk-4.6.1.0/gatk SelectVariants",
-      "-R", shQuote(fasta_file),
-      "-V", shQuote(in_vcf),
+      "-R",
+      shQuote(fasta_file),
+      "-V",
+      shQuote(in_vcf),
       "--select-type-to-include SNP",
-      "-O", shQuote(snps_vcf)
+      "-O",
+      shQuote(snps_vcf)
     )
     print(cmd_snps)
     system(cmd_snps)
   }
-
+  
   ## =========================
   ## 7) Seleccionar INDELs
   ## =========================
   if (!file.exists(indels_vcf)) {
     cmd_indels <- paste(
       "~/tools/gatk-4.6.1.0/gatk SelectVariants",
-      "-R", shQuote(fasta_file),
-      "-V", shQuote(in_vcf),
+      "-R",
+      shQuote(fasta_file),
+      "-V",
+      shQuote(in_vcf),
       "--select-type-to-include INDEL",
-      "-O", shQuote(indels_vcf)
+      "-O",
+      shQuote(indels_vcf)
     )
     print(cmd_indels)
     system(cmd_indels)
   }
-
+  
   ## =========================
   ## 8) Hard-filter SNPs
   ## =========================
   if (!file.exists(snps_filt_vcf)) {
-    cmd_snps_filt <- paste(
-      "~/tools/gatk-4.6.1.0/gatk VariantFiltration",
-      "-R", shQuote(fasta_file),
-      "-V", shQuote(snps_vcf),
-      "-O", shQuote(snps_filt_vcf),
-      "--filter-name QD2 --filter-expression 'QD < 2.0'",
-      "--filter-name FS60 --filter-expression 'FS > 60.0'",
-      "--filter-name MQ40 --filter-expression 'MQ < 40.0'",
-      "--filter-name MQRS-12.5 --filter-expression 'MQRankSum < -12.5'",
-      "--filter-name RPRS-8 --filter-expression 'ReadPosRankSum < -8.0'",
-      "--filter-name SOR3 --filter-expression 'SOR > 3.0'"
+    system2(
+      "~/tools/gatk-4.6.1.0/gatk",
+      args = c(
+        "VariantFiltration",
+        "-R",
+        fasta_file,
+        "-V",
+        snps_vcf,
+        "-O",
+        snps_filt_vcf,
+        "--filter-name",
+        "QD2",
+        "--filter-expression",
+        "QD < 2.0",
+        "--filter-name",
+        "FS60",
+        "--filter-expression",
+        "FS > 60.0",
+        "--filter-name",
+        "MQ40",
+        "--filter-expression",
+        "MQ < 40.0",
+        "--filter-name",
+        "MQRS-12.5",
+        "--filter-expression",
+        "MQRankSum < -12.5",
+        "--filter-name",
+        "RPRS-8",
+        "--filter-expression",
+        "ReadPosRankSum < -8.0",
+        "--filter-name",
+        "SOR3",
+        "--filter-expression",
+        "SOR > 3.0"
+      )
     )
-    print(cmd_snps_filt)
-    system(cmd_snps_filt)
   }
-
+  
+  
   ## =========================
   ## 9) Hard-filter INDELs
   ## =========================
-  system2(
-    "~/tools/gatk-4.6.1.0/gatk",
-    args = c(
-      "VariantFiltration",
-      "-R", fasta_file,
-      "-V", snps_vcf,
-      "-O", snps_filt_vcf,
-      "--filter-name", "QD2",
-      "--filter-expression", "QD < 2.0",
-      "--filter-name", "FS60",
-      "--filter-expression", "FS > 60.0",
-      "--filter-name", "MQ40",
-      "--filter-expression", "MQ < 40.0",
-      "--filter-name", "MQRS-12.5",
-      "--filter-expression", "MQRankSum < -12.5",
-      "--filter-name", "RPRS-8",
-      "--filter-expression", "ReadPosRankSum < -8.0",
-      "--filter-name", "SOR3",
-      "--filter-expression", "SOR > 3.0"
+  ## =========================
+  ## 9) Hard-filter INDELs (CORRECTO)
+  ## =========================
+  if (!file.exists(indels_filt_vcf)) {
+    system2(
+      "~/tools/gatk-4.6.1.0/gatk",
+      args = c(
+        "VariantFiltration",
+        "-R",
+        fasta_file,
+        "-V",
+        indels_vcf,
+        "-O",
+        indels_filt_vcf,
+        "--filter-name",
+        "QD2",
+        "--filter-expression",
+        "QD < 2.0",
+        "--filter-name",
+        "FS200",
+        "--filter-expression",
+        "FS > 200.0",
+        "--filter-name",
+        "RPRS-20",
+        "--filter-expression",
+        "ReadPosRankSum < -20.0",
+        "--filter-name",
+        "SOR10",
+        "--filter-expression",
+        "SOR > 10.0"
+      )
     )
-  )
+  }
   
-
+  
   ## =========================
   ## 10) Merge SNPs + INDELs
   ## =========================
-  if (!file.exists(merged_vcf)) {
-    cmd_merge <- paste(
-      "~/tools/gatk-4.6.1.0/gatk MergeVcfs",
-      "-I", shQuote(snps_filt_vcf),
-      "-I", shQuote(indels_filt_vcf),
-      "-O", shQuote(merged_vcf)
+  gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
+  
+  system2(
+    gatk_bin,
+    args = c(
+      "MergeVcfs",
+      "-I",
+      path.expand(snps_filt_vcf),
+      "-I",
+      path.expand(indels_filt_vcf),
+      "-O",
+      path.expand(merged_vcf)
     )
-    print(cmd_merge)
-    system(cmd_merge)
+  )
+  
+  
+  if (!file.exists(merged_vcf)) {
+    stop("ERROR CRÍTICO: no se pudo crear el VCF hardfiltered final: ",
+         merged_vcf)
   }
-
-  message("Hard-filter SNPs + INDELs aplicado correctamente")
 }
 
 
 
 
 
-analysisReady <- function(output_dir,
-                          fastq_dir) {
-  
+analysisReady <- function(output_dir, fastq_dir) {
   sample_id <- get_sample_name(fastq_dir)
   
   var_dir <- path.expand(file.path(output_dir, "variantCalling"))
@@ -1116,28 +1104,19 @@ analysisReady <- function(output_dir,
     stop("No existe el directorio variantCalling: ", var_dir)
   }
   
-  in_file <- file.path(
-    var_dir,
-    paste0(sample_id, ".hardfiltered.vcf")
-  )
+  in_file <- file.path(var_dir, paste0(sample_id, ".hardfiltered.vcf"))
   
   if (!file.exists(in_file)) {
     stop("No existe el VCF hardfiltered de entrada: ", in_file)
   }
   
-  out_file <- file.path(
-    var_dir,
-    paste0(sample_id, ".hardfiltered.pass.vcf")
-  )
+  out_file <- file.path(var_dir, paste0(sample_id, ".hardfiltered.pass.vcf"))
   
   if (!file.exists(out_file)) {
-    
     message("#### Generando VCF PASS final ####")
     
-    ret <- system2(
-      "bcftools",
-      c("view", "-f", "PASS", "-O", "v", "-o", out_file, in_file)
-    )
+    ret <- system2("bcftools",
+                   c("view", "-f", "PASS", "-O", "v", "-o", out_file, in_file))
     
     if (ret != 0 || !file.exists(out_file)) {
       stop("ERROR CRÍTICO: Falló la generación del VCF PASS final")
@@ -1145,12 +1124,9 @@ analysisReady <- function(output_dir,
   }
   
   ## Verificación NO vacío
-  n_pass <- as.integer(
-    system(
-      paste("bcftools view -H", shQuote(out_file), "| head -n 1 | wc -l"),
-      intern = TRUE
-    )
-  )
+  n_pass <- as.integer(system(paste(
+    "bcftools view -H", shQuote(out_file), "| head -n 1 | wc -l"
+  ), intern = TRUE))
   
   if (n_pass == 0) {
     stop("ERROR CRÍTICO: VCF PASS final vacío")
@@ -1170,7 +1146,6 @@ anotation <- function(folder_fasta,
                       path_snpeff,
                       output_dir,
                       fastq_dir) {
-  
   ## =========================
   ## 1) Nombre base de la muestra (ÚNICO)
   ## =========================
@@ -1180,7 +1155,9 @@ anotation <- function(folder_fasta,
   ## 2) Directorio de anotación
   ## =========================
   anotacion_dir <- path.expand(file.path(output_dir, "anotation"))
-  dir.create(anotacion_dir, showWarnings = FALSE, recursive = TRUE)
+  dir.create(anotacion_dir,
+             showWarnings = FALSE,
+             recursive = TRUE)
   
   ## =========================
   ## 3) VCF de entrada (PASS final)
@@ -1216,15 +1193,20 @@ anotation <- function(folder_fasta,
   ## =========================
   ## 5) Archivos de salida
   ## =========================
-  output_file_anno1 <- file.path(anotacion_dir, paste0(output_file_name, "_anno_snpeff.vcf"))
-  output_file_anno1_1 <- file.path(anotacion_dir, paste0(output_file_name, "_anno_snpeff_varType.vcf"))
-  output_file_anno2 <- file.path(anotacion_dir, paste0(output_file_name, "_anno_snpeff_clinvar.vcf"))
-  output_file_anno3 <- file.path(anotacion_dir, paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp.vcf"))
-  output_file_anno4 <- file.path(anotacion_dir, paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp_gwas.vcf"))
-  output_file_anno5 <- file.path(
+  output_file_anno1 <- file.path(anotacion_dir,
+                                 paste0(output_file_name, "_anno_snpeff.vcf"))
+  output_file_anno1_1 <- file.path(anotacion_dir,
+                                   paste0(output_file_name, "_anno_snpeff_varType.vcf"))
+  output_file_anno2 <- file.path(anotacion_dir,
+                                 paste0(output_file_name, "_anno_snpeff_clinvar.vcf"))
+  output_file_anno3 <- file.path(anotacion_dir,
+                                 paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp.vcf"))
+  output_file_anno4 <- file.path(
     anotacion_dir,
-    paste0(output_file_name, "_anno_final.vcf.gz")
+    paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp_gwas.vcf")
   )
+  output_file_anno5 <- file.path(anotacion_dir,
+                                 paste0(output_file_name, "_anno_final.vcf.gz"))
   
   ## =========================
   ## 6) Ejecutables
@@ -1235,13 +1217,9 @@ anotation <- function(folder_fasta,
   ## 7) snpEff
   ## =========================
   if (!file.exists(output_file_anno1)) {
-    
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g", "-jar", snpeff_jar,
-        "hg38", "-v", in_file
-      ),
+      args = c("-Xmx32g", "-jar", snpeff_jar, "hg38", "-v", in_file),
       stdout = output_file_anno1
     )
     
@@ -1254,12 +1232,15 @@ anotation <- function(folder_fasta,
   ## 8) SnpSift varType
   ## =========================
   if (!file.exists(output_file_anno1_1)) {
-    
     ret <- system2(
       java_bin,
       args = c(
-        "-Xmx32g", "-jar", snpsift_jar,
-        "varType", "-v", output_file_anno1
+        "-Xmx32g",
+        "-jar",
+        snpsift_jar,
+        "varType",
+        "-v",
+        output_file_anno1
       ),
       stdout = output_file_anno1_1
     )
@@ -1273,12 +1254,15 @@ anotation <- function(folder_fasta,
   ## 9) ClinVar
   ## =========================
   if (!file.exists(output_file_anno2)) {
-    
     ret <- system2(
       java_bin,
       args = c(
-        "-Xmx32g", "-jar", snpsift_jar,
-        "annotate", "-v", clinvar_vcf,
+        "-Xmx32g",
+        "-jar",
+        snpsift_jar,
+        "annotate",
+        "-v",
+        clinvar_vcf,
         output_file_anno1_1
       ),
       stdout = output_file_anno2
@@ -1293,12 +1277,16 @@ anotation <- function(folder_fasta,
   ## 10) dbNSFP completo
   ## =========================
   if (!file.exists(output_file_anno3)) {
-    
     ret <- system2(
       java_bin,
       args = c(
-        "-Xmx32g", "-jar", snpsift_jar,
-        "dbnsfp", "-v", "-db", dbnsfp_db,
+        "-Xmx32g",
+        "-jar",
+        snpsift_jar,
+        "dbnsfp",
+        "-v",
+        "-db",
+        dbnsfp_db,
         output_file_anno2
       ),
       stdout = output_file_anno3
@@ -1313,12 +1301,15 @@ anotation <- function(folder_fasta,
   ## 11) GWAS Catalog
   ## =========================
   if (!file.exists(output_file_anno4)) {
-    
     ret <- system2(
       java_bin,
       args = c(
-        "-Xmx32g", "-jar", snpsift_jar,
-        "gwasCat", "-db", gwas_db,
+        "-Xmx32g",
+        "-jar",
+        snpsift_jar,
+        "gwasCat",
+        "-db",
+        gwas_db,
         output_file_anno3
       ),
       stdout = output_file_anno4
@@ -1340,13 +1331,18 @@ anotation <- function(folder_fasta,
   )
   
   if (!file.exists(output_file_anno5)) {
-    
     ret <- system2(
       java_bin,
       args = c(
-        "-Xmx32g", "-jar", snpsift_jar,
-        "dbnsfp", "-v", "-db", dbnsfp_db,
-        "-f", campos,
+        "-Xmx32g",
+        "-jar",
+        snpsift_jar,
+        "dbnsfp",
+        "-v",
+        "-db",
+        dbnsfp_db,
+        "-f",
+        campos,
         output_file_anno4
       ),
       stdout = output_file_anno5
@@ -1492,8 +1488,7 @@ obtener_exoma_overlap <- function(bd_list, exoma_df, cromosomas, muestra) {
     Start     = start(gr_bd_hits),
     End       = end(gr_bd_hits),
     N         = bd_meta$N,
-    samples   = bd_meta$paste_m,
-    !!!exoma_meta
+    samples   = bd_meta$paste_m,!!!exoma_meta
   )
   
   resultados <- as.data.frame(resultados)
@@ -2320,10 +2315,7 @@ process_vcf_to_table <- function(folder_fasta,
 
 
 
-compute_depth <- function(folder_fasta,
-                          fastq_dir,
-                          output_dir) {
-  
+compute_depth <- function(folder_fasta, fastq_dir, output_dir) {
   ## =========================
   ## 1) Nombre base de la muestra (CANÓNICO)
   ## =========================
@@ -2337,10 +2329,8 @@ compute_depth <- function(folder_fasta,
   ## =========================
   ## 3) BAM final (BQSR aplicado)
   ## =========================
-  bam_file <- file.path(
-    mapping_output_dir,
-    paste0(output_file_name, ".sorted.mark_dup_bqsr.bam")
-  )
+  bam_file <- file.path(mapping_output_dir,
+                        paste0(output_file_name, ".sorted.mark_dup_bqsr.bam"))
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM para compute_depth: ", bam_file)
@@ -2350,7 +2340,9 @@ compute_depth <- function(folder_fasta,
   ## 4) Directorio de salida
   ## =========================
   dir_coverage <- file.path(output_dir, "coverage_and_stats")
-  dir.create(dir_coverage, recursive = TRUE, showWarnings = FALSE)
+  dir.create(dir_coverage,
+             recursive = TRUE,
+             showWarnings = FALSE)
   
   outfile_coverage <- file.path(dir_coverage, "coverage.txt")
   
@@ -2582,8 +2574,8 @@ muestra_dir   <- file.path(base_year_dir, muestra)
 output_dir    <- file.path(muestra_dir, "output_dir")
 
 dir.create(base_year_dir, recursive = TRUE, showWarnings = FALSE)
-dir.create(muestra_dir,   recursive = TRUE, showWarnings = FALSE)
-dir.create(output_dir,    recursive = TRUE, showWarnings = FALSE)
+dir.create(muestra_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(output_dir, recursive = TRUE, showWarnings = FALSE)
 
 hpo_file <- "~/NAS_NGS/datos_exomas/data_pipeline/genes_to_phenotype.txt"
 fastq_dir <- file.path(muestra_dir, "fastqfiles")
@@ -2598,7 +2590,9 @@ path_snpeff <- "~/tools/snpEff/"
 bd_data <- "./bd.rds"
 
 control_calidad(fastq_dir, output_dir)
-bwamem(fastq_dir = fastq_dir, folder_fasta = folder_fasta, output_dir = output_dir)
+bwamem(fastq_dir = fastq_dir,
+       folder_fasta = folder_fasta,
+       output_dir = output_dir)
 add_read_groups(output_dir = output_dir, fastq_dir = fastq_dir)
 
 markdups(output_dir = output_dir, fastq_dir = fastq_dir)
@@ -2623,12 +2617,14 @@ genotypeGVCF(folder_fasta, output_dir, fastq_dir)
 ## primer filtraje
 variantFiltration(folder_fasta, output_dir, fastq_dir)
 ## preparamos el archivo listo para elanalisis
-analysisReady(output_dir = output_dir, fastq_dir = fastq_dir )
+analysisReady(output_dir = output_dir, fastq_dir = fastq_dir)
 ##
-anotation(folder_fasta = folder_fasta ,
-          path_snpeff = path_snpeff ,
-          output_dir = output_dir ,
-          fastq_dir = fastq_dir)
+anotation(
+  folder_fasta = folder_fasta ,
+  path_snpeff = path_snpeff ,
+  output_dir = output_dir ,
+  fastq_dir = fastq_dir
+)
 
 # process_vcf_to_table(
 #   folder_fasta = folder_fasta,
@@ -2638,16 +2634,16 @@ anotation(folder_fasta = folder_fasta ,
 #   db = bd_data,
 #   hpo_file = hpo_file
 # )
-# 
-# 
+#
+#
 # compute_depth(
 #   folder_fasta = folder_fasta,
 #   fastq_dir = fastq_dir,
 #   output_dir = output_dir
 # )
-# 
+#
 # compute_stats(fastq_dir, output_dir, muestra)
-# 
+#
 
 # }
 print(Sys.time() - start)
