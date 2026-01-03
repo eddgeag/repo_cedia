@@ -917,7 +917,6 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   folder_fasta <- path.expand(folder_fasta)
   output_dir   <- path.expand(output_dir)
-  var_dir      <- path.expand(var_dir)
   
   fasta_file <- fn_exists_fasta(folder_fasta)
   
@@ -930,6 +929,7 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## 3) Directorio de variantes
   ## =========================
   var_dir <- file.path(output_dir, "variantCalling")
+  var_dir      <- path.expand(var_dir)
   
   ## =========================
   ## 4) VCF de entrada (GenotypeGVCFs)
