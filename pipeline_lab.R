@@ -1214,7 +1214,7 @@ anotation <- function(folder_fasta,
   in_file <- path.expand(file.path(
     output_dir,
     "variantCalling",
-    paste0(output_file_name, ".hardfiltered.pass.vcf")
+    paste0(output_file_name, ".hardfiltered.pass.vcf.gz")
   ))
   
   if (!file.exists(in_file)) {
