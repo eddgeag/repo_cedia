@@ -1011,23 +1011,17 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "--filter-expression", "SOR > 3.0"
     )
     
-    ## ---- IMPRIMIR COMANDO EXACTO ----
-    cat("\n### COMANDO GATK VariantFiltration (SNPs) ###\n")
+    cat("\n### GATK VariantFiltration (SNPs) ###\n")
     cat(paste(shQuote(gatk_bin), paste(shQuote(args_snps), collapse = " ")), "\n")
-    cat("###########################################\n\n")
     
-    ## ---- EJECUTAR CAPTURANDO STDERR ----
-    res <- system2(
+    system2(
       gatk_bin,
       args = args_snps,
-      stdout = TRUE,
-      stderr = TRUE
+      stdout = "",
+      stderr = ""
     )
-    
-    cat("### STDOUT / STDERR ###\n")
-    cat(paste(res, collapse = "\n"), "\n")
-    cat("######################\n")
   }
+  
   
   if (!file.exists(snps_filt_vcf)) {
     stop("ERROR CRÍTICO: VariantFiltration SNPs no generó archivo: ", snps_filt_vcf)
@@ -1037,42 +1031,45 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## 9) Hard-filter INDELs
   ## =========================
   ## =========================
-  ## 9) Hard-filter INDELs (CORRECTO)
+  ## 9) Hard-filter INDELs (SEGURO)
   ## =========================
   if (!file.exists(indels_filt_vcf)) {
-    system2(
-      gatk_bin,
-      args = c(
-        "VariantFiltration",
-        "-R",
-        fasta_file,
-        "-V",
-        indels_vcf,
-        "-O",
-        indels_filt_vcf,
-        "--filter-name",
-        "QD2",
-        "--filter-expression",
-        "QD < 2.0",
-        "--filter-name",
-        "FS200",
-        "--filter-expression",
-        "FS > 200.0",
-        "--filter-name",
-        "RPRS-20",
-        "--filter-expression",
-        "ReadPosRankSum < -20.0",
-        "--filter-name",
-        "SOR10",
-        "--filter-expression",
-        "SOR > 10.0"
-      )
+    
+    args_indels <- c(
+      "VariantFiltration",
+      "-R", fasta_file,
+      "-V", indels_vcf,
+      "-O", indels_filt_vcf,
+      "--filter-name", "QD2",
+      "--filter-expression", "QD < 2.0",
+      "--filter-name", "FS200",
+      "--filter-expression", "FS > 200.0",
+      "--filter-name", "RPRS-20",
+      "--filter-expression", "ReadPosRankSum < -20.0",
+      "--filter-name", "SOR10",
+      "--filter-expression", "SOR > 10.0"
     )
+    
+    cat("\n### COMANDO GATK VariantFiltration (INDELs) ###\n")
+    cat(paste(shQuote(gatk_bin), paste(shQuote(args_indels), collapse = " ")), "\n")
+    cat("#############################################\n\n")
+    
+    ret <- system2(
+      gatk_bin,
+      args = args_indels,
+      stdout = "",   # NO usar TRUE
+      stderr = ""    # NO usar TRUE
+    )
+    
+    if (!is.null(ret) && ret != 0) {
+      warning("GATK VariantFiltration (INDELs) retornó código: ", ret)
+    }
   }
   
   if (!file.exists(indels_filt_vcf)) {
     stop("ERROR CRÍTICO: VariantFiltration INDELs no generó archivo: ", indels_filt_vcf)
   }
+  
   
   ## =========================
   ## 10) Merge SNPs + INDELs
