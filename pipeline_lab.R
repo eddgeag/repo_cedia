@@ -1039,10 +1039,12 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   ## 9) Hard-filter INDELs
   ## =========================
+  ## =========================
+  ## 9) Hard-filter INDELs (CORREGIDO DEFINITIVO)
+  ## =========================
   if (!file.exists(indels_filt_vcf)) {
     
     args_indels <- c(
-      "VariantFiltration",
       "-R", fasta_file,
       "-V", indels_vcf,
       "-O", indels_filt_vcf,
@@ -1060,11 +1062,20 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "--filter-expression", "SOR>10.0"
     )
     
-    ## imprimir comando (debug)
-    cat("\n### GATK VariantFiltration (INDELs) ###\n")
-    cat(paste(shQuote(gatk_bin), paste(shQuote(args_indels), collapse = " ")), "\n")
+    argfile_indels <- tempfile(fileext = ".args")
+    writeLines(args_indels, argfile_indels)
     
-    system2(gatk_bin, args = args_indels)
+    ## debug limpio
+    cat("\n### GATK VariantFiltration (INDELs) ###\n")
+    cat("Arguments file:", argfile_indels, "\n")
+    cat("---- contents ----\n")
+    cat(readLines(argfile_indels), sep = "\n")
+    cat("\n------------------\n")
+    
+    system2(
+      gatk_bin,
+      args = c("VariantFiltration", "--arguments_file", argfile_indels)
+    )
   }
   
   if (!file.exists(indels_filt_vcf)) {
@@ -1073,6 +1084,7 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       indels_filt_vcf
     )
   }
+  
   
   
   
