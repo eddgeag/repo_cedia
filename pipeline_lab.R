@@ -1121,47 +1121,73 @@ analysisReady <- function(output_dir, fastq_dir) {
   sample_id <- get_sample_name(fastq_dir)
   
   var_dir <- path.expand(file.path(output_dir, "variantCalling"))
-  
   if (!dir.exists(var_dir)) {
     stop("No existe el directorio variantCalling: ", var_dir)
   }
   
+  ## -------------------------
+  ## VCF hardfiltered (entrada)
+  ## -------------------------
   in_file <- file.path(var_dir, paste0(sample_id, ".hardfiltered.vcf"))
-  
   if (!file.exists(in_file)) {
     stop("No existe el VCF hardfiltered de entrada: ", in_file)
   }
   
-  out_file <- file.path(var_dir, paste0(sample_id, ".hardfiltered.pass.vcf"))
+  ## -------------------------
+  ## VCF PASS (salida BGZIP)
+  ## -------------------------
+  out_vcf     <- file.path(var_dir, paste0(sample_id, ".hardfiltered.pass.vcf"))
+  out_vcf_gz  <- paste0(out_vcf, ".gz")
+  out_tbi     <- paste0(out_vcf_gz, ".tbi")
   
-  if (!file.exists(out_file)) {
-    message("#### Generando VCF PASS final ####")
+  if (!file.exists(out_vcf_gz)) {
+    message("#### Generando VCF PASS final (BGZIP) ####")
     
-    ret <- system2("bcftools",
-                   c("view", "-f", "PASS", "-O", "v", "-o", out_file, in_file))
+    ## 1) Extraer PASS en VCF plano
+    ret <- system2(
+      "bcftools",
+      c("view", "-f", "PASS", "-O", "v", "-o", out_vcf, in_file)
+    )
     
-    if (ret != 0 || !file.exists(out_file)) {
-      stop("ERROR CRÍTICO: Falló la generación del VCF PASS final")
+    if (ret != 0 || !file.exists(out_vcf)) {
+      stop("ERROR CRÍTICO: Falló la generación del VCF PASS")
+    }
+    
+    ## 2) BGZIP
+    system2("bgzip", c("-f", out_vcf))
+    
+    if (!file.exists(out_vcf_gz)) {
+      stop("ERROR CRÍTICO: Falló la compresión BGZIP del VCF PASS")
     }
   }
   
-  ## Verificación NO vacío
-  cmd <- c("view", "-H", out_file)
-  res <- system2("bcftools", cmd, stdout = TRUE)
+  ## -------------------------
+  ## Verificación: no vacío
+  ## -------------------------
+  res <- system2(
+    "bcftools",
+    c("view", "-H", out_vcf_gz),
+    stdout = TRUE
+  )
   
-  n_pass <- length(res)
-  
-  if (n_pass == 0) {
+  if (length(res) == 0) {
     stop("ERROR CRÍTICO: VCF PASS final vacío")
   }
   
-  ## Índice recomendado
-  out_tbi <- paste0(out_file, ".tbi")
+  ## -------------------------
+  ## Indexación TBI
+  ## -------------------------
   if (!file.exists(out_tbi)) {
-    system2("bcftools", c("index", "-t", out_file))
+    system2("bcftools", c("index", "-t", out_vcf_gz))
   }
   
-  message("VCF PASS final listo para anotación")
+  if (!file.exists(out_tbi)) {
+    stop("ERROR CRÍTICO: No se pudo crear el índice TBI del VCF PASS")
+  }
+  
+  message("VCF PASS final listo para anotación: ", out_vcf_gz)
+  
+  invisible(out_vcf_gz)
 }
 
 
@@ -2576,7 +2602,7 @@ compute_stats <- function(fastq_dir, output_dir, muestra) {
 
 
 
-#================main============#
+###=====main=============#########
 
 
 start <- Sys.time()
