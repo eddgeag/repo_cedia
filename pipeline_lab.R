@@ -991,7 +991,6 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   
   if (!file.exists(snps_filt_vcf)) {
-    
     args_snps <- c(
       "VariantFiltration",
       "-R", fasta_file,
@@ -1017,12 +1016,14 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "--filter-expression", "SOR > 3.0"
     )
     
-    system2(gatk_bin, args = args_snps)
+    argfile <- tempfile(fileext = ".args")
+    writeLines(args_snps, argfile)
     
+    system2(
+      gatk_bin,
+      args = c("--arguments_file", argfile)
+    )
     
-    
-    cat("\n### GATK VariantFiltration (SNPs) ###\n")
-    cat(paste(shQuote(gatk_bin), paste(shQuote(args_snps), collapse = " ")), "\n")
 
   }
   
