@@ -998,18 +998,21 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "-V", snps_vcf,
       "-O", snps_filt_vcf,
       "--filter-name", "QD2",
-      "--filter-expression", "QD < 2.0",
+      "--filter-expression", "QD \\< 2.0",
       "--filter-name", "FS60",
-      "--filter-expression", "FS > 60.0",
+      "--filter-expression", "FS \\> 60.0",
       "--filter-name", "MQ40",
-      "--filter-expression", "MQ < 40.0",
+      "--filter-expression", "MQ \\< 40.0",
       "--filter-name", "MQRS-12.5",
-      "--filter-expression", "MQRankSum < -12.5",
+      "--filter-expression", "MQRankSum \\< -12.5",
       "--filter-name", "RPRS-8",
-      "--filter-expression", "ReadPosRankSum < -8.0",
+      "--filter-expression", "ReadPosRankSum \\< -8.0",
       "--filter-name", "SOR3",
-      "--filter-expression", "SOR > 3.0"
+      "--filter-expression", "SOR \\> 3.0"
     )
+    
+    system2(gatk_bin, args = args_snps)
+    
     
     cat("\n### GATK VariantFiltration (SNPs) ###\n")
     cat(paste(shQuote(gatk_bin), paste(shQuote(args_snps), collapse = " ")), "\n")
@@ -1041,13 +1044,13 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "-V", indels_vcf,
       "-O", indels_filt_vcf,
       "--filter-name", "QD2",
-      "--filter-expression", "QD < 2.0",
+      "--filter-expression", "QD \\< 2.0",
       "--filter-name", "FS200",
-      "--filter-expression", "FS > 200.0",
+      "--filter-expression", "FS \\> 200.0",
       "--filter-name", "RPRS-20",
-      "--filter-expression", "ReadPosRankSum < -20.0",
+      "--filter-expression", "ReadPosRankSum \\< -20.0",
       "--filter-name", "SOR10",
-      "--filter-expression", "SOR > 10.0"
+      "--filter-expression", "SOR \\> 10.0"
     )
     
     cat("\n### COMANDO GATK VariantFiltration (INDELs) ###\n")
