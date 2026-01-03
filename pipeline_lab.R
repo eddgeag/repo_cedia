@@ -915,6 +915,10 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   ## 1) FASTA de referencia
   ## =========================
+  folder_fasta <- path.expand(folder_fasta)
+  output_dir   <- path.expand(output_dir)
+  var_dir      <- path.expand(var_dir)
+  
   fasta_file <- fn_exists_fasta(folder_fasta)
   
   ## =========================
@@ -949,45 +953,43 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   
   merged_vcf      <- file.path(var_dir, paste0(output_file_name, ".hardfiltered.vcf"))
   
+  gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
+  
   ## =========================
   ## 6) Seleccionar SNPs
   ## =========================
   if (!file.exists(snps_vcf)) {
-    cmd_snps <- paste(
-      "~/tools/gatk-4.6.1.0/gatk SelectVariants",
-      "-R",
-      shQuote(fasta_file),
-      "-V",
-      shQuote(in_vcf),
-      "--select-type-to-include SNP",
-      "-O",
-      shQuote(snps_vcf)
+    system2(
+      gatk_bin,
+      args = c(
+        "SelectVariants",
+        "-R", fasta_file,
+        "-V", in_vcf,
+        "--select-type-to-include", "SNP",
+        "-O", snps_vcf
+      )
     )
-    print(cmd_snps)
-    system(cmd_snps)
   }
   
   ## =========================
   ## 7) Seleccionar INDELs
   ## =========================
   if (!file.exists(indels_vcf)) {
-    cmd_indels <- paste(
-      "~/tools/gatk-4.6.1.0/gatk SelectVariants",
-      "-R",
-      shQuote(fasta_file),
-      "-V",
-      shQuote(in_vcf),
-      "--select-type-to-include INDEL",
-      "-O",
-      shQuote(indels_vcf)
+    system2(
+      gatk_bin,
+      args = c(
+        "SelectVariants",
+        "-R", fasta_file,
+        "-V", in_vcf,
+        "--select-type-to-include", "INDEL",
+        "-O", indels_vcf
+      )
     )
-    print(cmd_indels)
-    system(cmd_indels)
   }
-  
   ## =========================
   ## 8) Hard-filter SNPs
   ## =========================
+  
   if (!file.exists(snps_filt_vcf)) {
     system2(
       "~/tools/gatk-4.6.1.0/gatk",
@@ -1027,6 +1029,9 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
     )
   }
   
+  if (!file.exists(snps_filt_vcf)) {
+    stop("ERROR CRÍTICO: VariantFiltration SNPs no generó archivo: ", snps_filt_vcf)
+  }
   
   ## =========================
   ## 9) Hard-filter INDELs
@@ -1065,6 +1070,9 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
     )
   }
   
+  if (!file.exists(indels_filt_vcf)) {
+    stop("ERROR CRÍTICO: VariantFiltration INDELs no generó archivo: ", indels_filt_vcf)
+  }
   
   ## =========================
   ## 10) Merge SNPs + INDELs
