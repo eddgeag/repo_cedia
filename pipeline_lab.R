@@ -991,42 +991,42 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   ## =========================
   
   if (!file.exists(snps_filt_vcf)) {
-    system2(
-      gatk_bin,
-      args = c(
-        "VariantFiltration",
-        "-R",
-        fasta_file,
-        "-V",
-        snps_vcf,
-        "-O",
-        snps_filt_vcf,
-        "--filter-name",
-        "QD2",
-        "--filter-expression",
-        "QD < 2.0",
-        "--filter-name",
-        "FS60",
-        "--filter-expression",
-        "FS > 60.0",
-        "--filter-name",
-        "MQ40",
-        "--filter-expression",
-        "MQ < 40.0",
-        "--filter-name",
-        "MQRS-12.5",
-        "--filter-expression",
-        "MQRankSum < -12.5",
-        "--filter-name",
-        "RPRS-8",
-        "--filter-expression",
-        "ReadPosRankSum < -8.0",
-        "--filter-name",
-        "SOR3",
-        "--filter-expression",
-        "SOR > 3.0"
-      )
+    
+    args_snps <- c(
+      "VariantFiltration",
+      "-R", fasta_file,
+      "-V", snps_vcf,
+      "-O", snps_filt_vcf,
+      "--filter-name", "QD2",
+      "--filter-expression", "QD < 2.0",
+      "--filter-name", "FS60",
+      "--filter-expression", "FS > 60.0",
+      "--filter-name", "MQ40",
+      "--filter-expression", "MQ < 40.0",
+      "--filter-name", "MQRS-12.5",
+      "--filter-expression", "MQRankSum < -12.5",
+      "--filter-name", "RPRS-8",
+      "--filter-expression", "ReadPosRankSum < -8.0",
+      "--filter-name", "SOR3",
+      "--filter-expression", "SOR > 3.0"
     )
+    
+    ## ---- IMPRIMIR COMANDO EXACTO ----
+    cat("\n### COMANDO GATK VariantFiltration (SNPs) ###\n")
+    cat(paste(shQuote(gatk_bin), paste(shQuote(args_snps), collapse = " ")), "\n")
+    cat("###########################################\n\n")
+    
+    ## ---- EJECUTAR CAPTURANDO STDERR ----
+    res <- system2(
+      gatk_bin,
+      args = args_snps,
+      stdout = TRUE,
+      stderr = TRUE
+    )
+    
+    cat("### STDOUT / STDERR ###\n")
+    cat(paste(res, collapse = "\n"), "\n")
+    cat("######################\n")
   }
   
   if (!file.exists(snps_filt_vcf)) {
