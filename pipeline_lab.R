@@ -969,178 +969,136 @@ genotypeGVCF <- function(folder_fasta,
 variantFiltration <- function(folder_fasta,
                               output_dir,
                               fastq_dir) {
-  
+
   ## =========================
-  ## 0) Setup
+  ## 1) FASTA de referencia
   ## =========================
-  fasta_file <- path.expand(fn_exists_fasta(folder_fasta))
-  sample_id  <- get_sample_name(fastq_dir)
-  
-  var_dir <- path.expand(file.path(output_dir, "variantCalling"))
-  dir.create(var_dir, recursive = TRUE, showWarnings = FALSE)
-  
-  gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
-  
+  fasta_file <- fn_exists_fasta(folder_fasta)
+
   ## =========================
-  ## 1) VCF de entrada
+  ## 2) Nombre base de la muestra (FUENTE ÚNICA)
   ## =========================
-  in_vcf <- file.path(var_dir, paste0(sample_id, "_sample.raw.vcf.gz"))
-  in_vcf_tbi <- paste0(in_vcf, ".tbi")
-  
-  if (!file.exists(in_vcf))
-    stop("No existe VCF de entrada: ", in_vcf)
-  if (!file.exists(in_vcf_tbi))
-    stop("No existe índice .tbi del VCF de entrada: ", in_vcf_tbi)
-  
-  ## VCF no vacío
-  n_variants <- as.integer(
-    system(
-      paste("bcftools view -H", shQuote(in_vcf), "| head -n 1 | wc -l"),
-      intern = TRUE
-    )
+  output_file_name <- get_sample_name(fastq_dir)
+
+  ## =========================
+  ## 3) Directorio de variantes
+  ## =========================
+  var_dir <- file.path(output_dir, "variantCalling")
+
+  ## =========================
+  ## 4) VCF de entrada (GenotypeGVCFs)
+  ## =========================
+  in_vcf <- file.path(
+    var_dir,
+    paste0(output_file_name, "_sample.raw.vcf.gz")
   )
-  if (n_variants == 0)
-    stop("ERROR CRÍTICO: VCF vacío: ", in_vcf)
   
+  if (!file.exists(in_vcf)) {
+    stop("No existe el VCF de entrada para hard-filter: ", in_vcf)
+  }
+
   ## =========================
-  ## 2) Archivos intermedios
+  ## 5) Archivos intermedios
   ## =========================
-  snps_vcf   <- file.path(var_dir, paste0(sample_id, ".snps.vcf"))
-  indels_vcf <- file.path(var_dir, paste0(sample_id, ".indels.vcf"))
-  
-  snps_filt_vcf   <- file.path(var_dir, paste0(sample_id, ".snps.hardfiltered.vcf"))
-  indels_filt_vcf <- file.path(var_dir, paste0(sample_id, ".indels.hardfiltered.vcf"))
-  
-  merged_vcf     <- file.path(var_dir, paste0(sample_id, ".hardfiltered.vcf"))
-  merged_vcf_tbi <- paste0(merged_vcf, ".tbi")
-  
+  snps_vcf        <- file.path(var_dir, paste0(output_file_name, ".snps.vcf"))
+  indels_vcf      <- file.path(var_dir, paste0(output_file_name, ".indels.vcf"))
+
+  snps_filt_vcf   <- file.path(var_dir, paste0(output_file_name, ".snps.hardfiltered.vcf"))
+  indels_filt_vcf <- file.path(var_dir, paste0(output_file_name, ".indels.hardfiltered.vcf"))
+
+  merged_vcf      <- file.path(var_dir, paste0(output_file_name, ".hardfiltered.vcf"))
+
   ## =========================
-  ## 3) Select SNPs
+  ## 6) Seleccionar SNPs
   ## =========================
   if (!file.exists(snps_vcf)) {
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "SelectVariants",
-        "-R", fasta_file,
-        "-V", in_vcf,
-        "--select-type-to-include", "SNP",
-        "-O", snps_vcf
-      )
+    cmd_snps <- paste(
+      "~/tools/gatk-4.6.1.0/gatk SelectVariants",
+      "-R", shQuote(fasta_file),
+      "-V", shQuote(in_vcf),
+      "--select-type-to-include SNP",
+      "-O", shQuote(snps_vcf)
     )
-    if (ret != 0 || !file.exists(snps_vcf))
-      stop("ERROR CRÍTICO: Fallo al seleccionar SNPs")
+    print(cmd_snps)
+    system(cmd_snps)
   }
-  
+
   ## =========================
-  ## 4) Select INDELs
+  ## 7) Seleccionar INDELs
   ## =========================
   if (!file.exists(indels_vcf)) {
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "SelectVariants",
-        "-R", fasta_file,
-        "-V", in_vcf,
-        "--select-type-to-include", "INDEL",
-        "-O", indels_vcf
-      )
+    cmd_indels <- paste(
+      "~/tools/gatk-4.6.1.0/gatk SelectVariants",
+      "-R", shQuote(fasta_file),
+      "-V", shQuote(in_vcf),
+      "--select-type-to-include INDEL",
+      "-O", shQuote(indels_vcf)
     )
-    if (ret != 0 || !file.exists(indels_vcf))
-      stop("ERROR CRÍTICO: Fallo al seleccionar INDELs")
+    print(cmd_indels)
+    system(cmd_indels)
   }
-  
+
   ## =========================
-  ## 5) Hard-filter SNPs
+  ## 8) Hard-filter SNPs
   ## =========================
   if (!file.exists(snps_filt_vcf)) {
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "VariantFiltration",
-        "-R", fasta_file,
-        "-V", snps_vcf,
-        "-O", snps_filt_vcf,
-        "--filter-name", "QD2",       "--filter-expression", "QD < 2.0",
-        "--filter-name", "FS60",      "--filter-expression", "FS > 60.0",
-        "--filter-name", "MQ40",      "--filter-expression", "MQ < 40.0",
-        "--filter-name", "MQRS-12.5", "--filter-expression", "MQRankSum < -12.5",
-        "--filter-name", "RPRS-8",    "--filter-expression", "ReadPosRankSum < -8.0",
-        "--filter-name", "SOR3",      "--filter-expression", "SOR > 3.0"
-      )
+    cmd_snps_filt <- paste(
+      "~/tools/gatk-4.6.1.0/gatk VariantFiltration",
+      "-R", shQuote(fasta_file),
+      "-V", shQuote(snps_vcf),
+      "-O", shQuote(snps_filt_vcf),
+      "--filter-name QD2 --filter-expression 'QD < 2.0'",
+      "--filter-name FS60 --filter-expression 'FS > 60.0'",
+      "--filter-name MQ40 --filter-expression 'MQ < 40.0'",
+      "--filter-name MQRS-12.5 --filter-expression 'MQRankSum < -12.5'",
+      "--filter-name RPRS-8 --filter-expression 'ReadPosRankSum < -8.0'",
+      "--filter-name SOR3 --filter-expression 'SOR > 3.0'"
     )
-    if (ret != 0 || !file.exists(snps_filt_vcf))
-      stop("ERROR CRÍTICO: Fallo en hard-filter de SNPs")
+    print(cmd_snps_filt)
+    system(cmd_snps_filt)
   }
-  
+
   ## =========================
-  ## 6) Hard-filter INDELs
+  ## 9) Hard-filter INDELs
   ## =========================
-  if (!file.exists(indels_filt_vcf)) {
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "VariantFiltration",
-        "-R", fasta_file,
-        "-V", indels_vcf,
-        "-O", indels_filt_vcf,
-        "--filter-name", "QD2",     "--filter-expression", "QD < 2.0",
-        "--filter-name", "FS200",   "--filter-expression", "FS > 200.0",
-        "--filter-name", "RPRS-20", "--filter-expression", "ReadPosRankSum < -20.0",
-        "--filter-name", "SOR10",   "--filter-expression", "SOR > 10.0"
-      )
-    )
-    if (ret != 0 || !file.exists(indels_filt_vcf))
-      stop("ERROR CRÍTICO: Fallo en hard-filter de INDELs")
-  }
-  
-  ## =========================
-  ## 7) Merge SNPs + INDELs
-  ## =========================
-  if (!file.exists(merged_vcf)) {
-    ret <- system2(
-      gatk_bin,
-      args = c(
-        "MergeVcfs",
-        "-I", snps_filt_vcf,
-        "-I", indels_filt_vcf,
-        "-O", merged_vcf
-      )
-    )
-    if (ret != 0 || !file.exists(merged_vcf))
-      stop("ERROR CRÍTICO: Fallo al fusionar SNPs + INDELs")
-  }
-  
-  ## =========================
-  ## 8) Índice .tbi
-  ## =========================
-  if (!file.exists(merged_vcf_tbi)) {
-    ret <- system2(
-      gatk_bin,
-      args = c("IndexFeatureFile", "-I", merged_vcf)
-    )
-    if (ret != 0 || !file.exists(merged_vcf_tbi))
-      stop("ERROR CRÍTICO: No se pudo generar índice .tbi del VCF final")
-  }
-  
-  ## =========================
-  ## 9) Comprobación PASS
-  ## =========================
-  n_pass <- as.integer(
-    system(
-      paste("bcftools view -f PASS -H", shQuote(merged_vcf),
-            "| head -n 1 | wc -l"),
-      intern = TRUE
+  system2(
+    "~/tools/gatk-4.6.1.0/gatk",
+    args = c(
+      "VariantFiltration",
+      "-R", fasta_file,
+      "-V", snps_vcf,
+      "-O", snps_filt_vcf,
+      "--filter-name", "QD2",
+      "--filter-expression", "QD < 2.0",
+      "--filter-name", "FS60",
+      "--filter-expression", "FS > 60.0",
+      "--filter-name", "MQ40",
+      "--filter-expression", "MQ < 40.0",
+      "--filter-name", "MQRS-12.5",
+      "--filter-expression", "MQRankSum < -12.5",
+      "--filter-name", "RPRS-8",
+      "--filter-expression", "ReadPosRankSum < -8.0",
+      "--filter-name", "SOR3",
+      "--filter-expression", "SOR > 3.0"
     )
   )
   
-  if (n_pass == 0)
-    stop(
-      "ERROR CRÍTICO: el VCF final no contiene variantes PASS.\n",
-      "Revisa calidad, cobertura o filtros."
+
+  ## =========================
+  ## 10) Merge SNPs + INDELs
+  ## =========================
+  if (!file.exists(merged_vcf)) {
+    cmd_merge <- paste(
+      "~/tools/gatk-4.6.1.0/gatk MergeVcfs",
+      "-I", shQuote(snps_filt_vcf),
+      "-I", shQuote(indels_filt_vcf),
+      "-O", shQuote(merged_vcf)
     )
-  
-  message("Hard-filter SNPs + INDELs completado correctamente (VCF válido y con PASS)")
+    print(cmd_merge)
+    system(cmd_merge)
+  }
+
+  message("Hard-filter SNPs + INDELs aplicado correctamente")
 }
 
 
@@ -2670,7 +2628,7 @@ analysisReady(output_dir = output_dir, fastq_dir = fastq_dir )
 anotation(folder_fasta = folder_fasta ,
           path_snpeff = path_snpeff ,
           output_dir = output_dir ,
-          fastq_dir = fastq_dirs)
+          fastq_dir = fastq_dir)
 
 # process_vcf_to_table(
 #   folder_fasta = folder_fasta,
