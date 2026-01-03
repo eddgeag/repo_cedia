@@ -1195,218 +1195,192 @@ anotation <- function(folder_fasta,
                       path_snpeff,
                       output_dir,
                       fastq_dir) {
-  ## =========================
-  ## 1) Nombre base de la muestra (ÚNICO)
-  ## =========================
-  output_file_name <- get_sample_name(fastq_dir)
   
-  ## =========================
-  ## 2) Directorio de anotación
-  ## =========================
-  anotacion_dir <- path.expand(file.path(output_dir, "anotation"))
-  dir.create(anotacion_dir,
-             showWarnings = FALSE,
-             recursive = TRUE)
+  ## =========================================================
+  ## 0) Java check (CRÍTICO)
+  ## =========================================================
+  java_bin <- Sys.which("java")
+  if (java_bin == "") stop("ERROR CRÍTICO: java no encontrado en PATH")
   
-  ## =========================
-  ## 3) VCF de entrada (PASS final)
-  ## =========================
-  in_file <- path.expand(file.path(
-    output_dir,
-    "variantCalling",
-    paste0(output_file_name, ".hardfiltered.pass.vcf.gz")
-  ))
+  java_ver <- tryCatch(
+    system2(java_bin, "-version", stderr = TRUE, stdout = TRUE),
+    error = function(e) NA
+  )
+  java_ver_txt <- paste(java_ver, collapse = " ")
   
-  if (!file.exists(in_file)) {
-    stop("No existe el VCF PASS para anotación: ", in_file)
+  if (!grepl("version \"(21|22|23)", java_ver_txt)) {
+    stop(
+      "ERROR CRÍTICO: snpEff requiere Java >= 21\n",
+      "Versión detectada:\n", java_ver_txt, "\n",
+      "Solución:\n",
+      "  sudo apt install openjdk-21-jre\n",
+      "  o usar module load java/21"
+    )
   }
   
-  ## =========================
-  ## 4) Recursos externos (OBLIGATORIOS)
-  ## =========================
-  snpeff_jar  <- path.expand(file.path(path_snpeff, "snpEff.jar"))
-  snpsift_jar <- path.expand(file.path(path_snpeff, "SnpSift.jar"))
+  ## =========================================================
+  ## 1) Nombre de muestra
+  ## =========================================================
+  sample_id <- get_sample_name(fastq_dir)
+  
+  ## =========================================================
+  ## 2) Directorios
+  ## =========================================================
+  output_dir     <- path.expand(output_dir)
+  variant_dir    <- file.path(output_dir, "variantCalling")
+  anotacion_dir  <- file.path(output_dir, "anotation")
+  
+  dir.create(anotacion_dir, recursive = TRUE, showWarnings = FALSE)
+  
+  ## =========================================================
+  ## 3) VCF PASS BGZIP de entrada
+  ## =========================================================
+  in_vcf <- file.path(
+    variant_dir,
+    paste0(sample_id, ".hardfiltered.pass.vcf.gz")
+  )
+  
+  if (!file.exists(in_vcf)) {
+    stop("No existe el VCF PASS BGZIP para anotación: ", in_vcf)
+  }
+  
+  ## =========================================================
+  ## 4) Recursos externos
+  ## =========================================================
+  path_snpeff <- path.expand(path_snpeff)
+  
+  snpeff_jar  <- file.path(path_snpeff, "snpEff.jar")
+  snpsift_jar <- file.path(path_snpeff, "SnpSift.jar")
   
   clinvar_vcf <- path.expand("~/NAS_NGS/datos_exomas/datos_clinvar/clinvar.vcf.gz")
   dbnsfp_db   <- path.expand("~/NAS_NGS/datos_exomas/datos_dbsnp/dbNSFP5.1a_grch38.gz")
   gwas_db     <- path.expand("~/NAS_NGS/datos_exomas/gwas/gwascatalog.txt")
   
-  req_files <- c(snpeff_jar, snpsift_jar, clinvar_vcf, dbnsfp_db, gwas_db)
-  if (!all(file.exists(req_files))) {
+  req <- c(snpeff_jar, snpsift_jar, clinvar_vcf, dbnsfp_db, gwas_db)
+  if (!all(file.exists(req))) {
     stop(
       "ERROR CRÍTICO: faltan recursos de anotación:\n",
-      paste(req_files[!file.exists(req_files)], collapse = "\n")
+      paste(req[!file.exists(req)], collapse = "\n")
     )
   }
   
-  ## =========================
-  ## 5) Archivos de salida
-  ## =========================
-  output_file_anno1 <- file.path(anotacion_dir,
-                                 paste0(output_file_name, "_anno_snpeff.vcf"))
-  output_file_anno1_1 <- file.path(anotacion_dir,
-                                   paste0(output_file_name, "_anno_snpeff_varType.vcf"))
-  output_file_anno2 <- file.path(anotacion_dir,
-                                 paste0(output_file_name, "_anno_snpeff_clinvar.vcf"))
-  output_file_anno3 <- file.path(anotacion_dir,
-                                 paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp.vcf"))
-  output_file_anno4 <- file.path(
-    anotacion_dir,
-    paste0(output_file_name, "_anno_snpeff_clinvar_dbnsfp_gwas.vcf")
-  )
-  output_file_anno5 <- file.path(anotacion_dir,
-                                 paste0(output_file_name, "_anno_final.vcf.gz"))
+  ## =========================================================
+  ## 5) Descargar base hg38 de snpEff si falta
+  ## =========================================================
+  snpeff_data <- file.path(path_snpeff, "data", "hg38")
+  if (!dir.exists(snpeff_data)) {
+    message("Descargando base hg38 de snpEff...")
+    system2(
+      java_bin,
+      c("-Xmx4g", "-jar", snpeff_jar, "download", "hg38"),
+      stdout = TRUE,
+      stderr = TRUE
+    )
+    if (!dir.exists(snpeff_data)) {
+      stop("ERROR CRÍTICO: no se pudo descargar la base hg38 de snpEff")
+    }
+  }
   
-  ## =========================
-  ## 6) Ejecutables
-  ## =========================
-  java_bin <- "java"
+  ## =========================================================
+  ## 6) Archivos de salida
+  ## =========================================================
+  f1 <- file.path(anotacion_dir, paste0(sample_id, "_01_snpeff.vcf"))
+  f2 <- file.path(anotacion_dir, paste0(sample_id, "_02_varType.vcf"))
+  f3 <- file.path(anotacion_dir, paste0(sample_id, "_03_clinvar.vcf"))
+  f4 <- file.path(anotacion_dir, paste0(sample_id, "_04_dbnsfp_full.vcf"))
+  f5 <- file.path(anotacion_dir, paste0(sample_id, "_05_gwas.vcf"))
+  f6 <- file.path(anotacion_dir, paste0(sample_id, "_06_dbnsfp_reduced.vcf.gz"))
   
-  ## =========================
+  ## =========================================================
   ## 7) snpEff
-  ## =========================
-  if (!file.exists(output_file_anno1)) {
+  ## =========================================================
+  if (!file.exists(f1)) {
     ret <- system2(
       java_bin,
-      args = c("-Xmx32g", "-jar", snpeff_jar, "hg38", "-v", in_file),
-      stdout = output_file_anno1
+      c("-Xmx32g", "-jar", snpeff_jar, "hg38", "-v", in_vcf),
+      stdout = f1
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno1)) {
-      stop("ERROR CRÍTICO: snpEff falló")
-    }
+    if (ret != 0 || !file.exists(f1)) stop("ERROR CRÍTICO: snpEff falló")
   }
   
-  ## =========================
+  ## =========================================================
   ## 8) SnpSift varType
-  ## =========================
-  if (!file.exists(output_file_anno1_1)) {
+  ## =========================================================
+  if (!file.exists(f2)) {
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g",
-        "-jar",
-        snpsift_jar,
-        "varType",
-        "-v",
-        output_file_anno1
-      ),
-      stdout = output_file_anno1_1
+      c("-Xmx32g", "-jar", snpsift_jar, "varType", "-v", f1),
+      stdout = f2
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno1_1)) {
-      stop("ERROR CRÍTICO: SnpSift varType falló")
-    }
+    if (ret != 0 || !file.exists(f2)) stop("ERROR CRÍTICO: SnpSift varType falló")
   }
   
-  ## =========================
+  ## =========================================================
   ## 9) ClinVar
-  ## =========================
-  if (!file.exists(output_file_anno2)) {
+  ## =========================================================
+  if (!file.exists(f3)) {
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g",
-        "-jar",
-        snpsift_jar,
-        "annotate",
-        "-v",
-        clinvar_vcf,
-        output_file_anno1_1
-      ),
-      stdout = output_file_anno2
+      c("-Xmx32g", "-jar", snpsift_jar, "annotate", "-v", clinvar_vcf, f2),
+      stdout = f3
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno2)) {
-      stop("ERROR CRÍTICO: anotación ClinVar falló")
-    }
+    if (ret != 0 || !file.exists(f3)) stop("ERROR CRÍTICO: ClinVar falló")
   }
   
-  ## =========================
+  ## =========================================================
   ## 10) dbNSFP completo
-  ## =========================
-  if (!file.exists(output_file_anno3)) {
+  ## =========================================================
+  if (!file.exists(f4)) {
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g",
-        "-jar",
-        snpsift_jar,
-        "dbnsfp",
-        "-v",
-        "-db",
-        dbnsfp_db,
-        output_file_anno2
-      ),
-      stdout = output_file_anno3
+      c("-Xmx32g", "-jar", snpsift_jar, "dbnsfp", "-v", "-db", dbnsfp_db, f3),
+      stdout = f4
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno3)) {
-      stop("ERROR CRÍTICO: anotación dbNSFP falló")
-    }
+    if (ret != 0 || !file.exists(f4)) stop("ERROR CRÍTICO: dbNSFP completo falló")
   }
   
-  ## =========================
+  ## =========================================================
   ## 11) GWAS Catalog
-  ## =========================
-  if (!file.exists(output_file_anno4)) {
+  ## =========================================================
+  if (!file.exists(f5)) {
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g",
-        "-jar",
-        snpsift_jar,
-        "gwasCat",
-        "-db",
-        gwas_db,
-        output_file_anno3
-      ),
-      stdout = output_file_anno4
+      c("-Xmx32g", "-jar", snpsift_jar, "gwasCat", "-db", gwas_db, f4),
+      stdout = f5
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno4)) {
-      stop("ERROR CRÍTICO: anotación GWAS Catalog falló")
-    }
+    if (ret != 0 || !file.exists(f5)) stop("ERROR CRÍTICO: GWAS Catalog falló")
   }
   
-  ## =========================
-  ## 12) dbNSFP reducido (campos clave)
-  ## =========================
+  ## =========================================================
+  ## 12) dbNSFP reducido (final)
+  ## =========================================================
   campos <- paste(
-    "aaref,aaalt,rs_dbSNP,HGVSc_snpEff,HGVSp_snpEff,APPRIS,M-CAP_pred,",
-    "CADD_phred,clinvar_OMIM_id,clinvar_Orphanet_id,clinvar_MedGen_id,",
-    "AlphaMissense_pred,Reliability_index",
+    "aaref,aaalt,rs_dbSNP,HGVSc_snpEff,HGVSp_snpEff,APPRIS,",
+    "CADD_phred,AlphaMissense_pred,clinvar_OMIM_id,",
+    "clinvar_Orphanet_id,clinvar_MedGen_id",
     sep = ""
   )
   
-  if (!file.exists(output_file_anno5)) {
+  if (!file.exists(f6)) {
+    tmp <- sub("\\.gz$", "", f6)
     ret <- system2(
       java_bin,
-      args = c(
-        "-Xmx32g",
-        "-jar",
-        snpsift_jar,
-        "dbnsfp",
-        "-v",
-        "-db",
-        dbnsfp_db,
-        "-f",
-        campos,
-        output_file_anno4
-      ),
-      stdout = output_file_anno5
+      c("-Xmx32g", "-jar", snpsift_jar, "dbnsfp",
+        "-v", "-db", dbnsfp_db, "-f", campos, f5),
+      stdout = tmp
     )
-    
-    if (ret != 0 || !file.exists(output_file_anno5)) {
-      stop("ERROR CRÍTICO: dbNSFP reducido falló")
-    }
+    if (ret != 0 || !file.exists(tmp)) stop("ERROR CRÍTICO: dbNSFP reducido falló")
+    system2("bgzip", c("-f", tmp))
   }
-  if (!file.exists(paste0(output_file_anno5, ".tbi"))) {
-    system2("bcftools", c("index", "-t", output_file_anno5))
+  
+  if (!file.exists(paste0(f6, ".tbi"))) {
+    system2("bcftools", c("index", "-t", f6))
   }
   
   message("ANOTACIÓN COMPLETA FINALIZADA (pipeline clínico)")
+  invisible(f6)
 }
+
 
 
 
