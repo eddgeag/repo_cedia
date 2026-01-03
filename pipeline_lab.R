@@ -992,7 +992,6 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
   
   if (!file.exists(snps_filt_vcf)) {
     args_snps <- c(
-      "VariantFiltration",
       "-R", fasta_file,
       "-V", snps_vcf,
       "-O", snps_filt_vcf,
@@ -1021,7 +1020,7 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
     
     system2(
       gatk_bin,
-      args = c("--arguments_file", argfile)
+      args = c("VariantFiltration", "--arguments_file", argfile)
     )
     
 
