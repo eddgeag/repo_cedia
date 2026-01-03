@@ -1132,9 +1132,10 @@ analysisReady <- function(output_dir, fastq_dir) {
   }
   
   ## Verificación NO vacío
-  n_pass <- as.integer(system(paste(
-    "bcftools view -H", shQuote(out_file), "| head -n 1 | wc -l"
-  ), intern = TRUE))
+  cmd <- c("view", "-H", out_file)
+  res <- system2("bcftools", cmd, stdout = TRUE)
+  
+  n_pass <- length(res)
   
   if (n_pass == 0) {
     stop("ERROR CRÍTICO: VCF PASS final vacío")
