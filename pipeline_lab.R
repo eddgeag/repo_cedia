@@ -637,7 +637,8 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
   ## =========================
   ## 2) BED del exoma (OBLIGATORIO EN CLÍNICA)
   ## =========================
-  bed_file <- path.expand("./MGI_Exome_Capture_V5.bed")
+  bed_file <- path.expand("./MGI_Exome_Capture_V5.hg38.sorted.merged.bed")
+
   
   if (!file.exists(bed_file)) {
     stop("ERROR CRÍTICO: no existe el BED de captura del exoma: ", bed_file)
