@@ -661,7 +661,8 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
     paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
   )
   
-  bam_bai <- paste0(bam_file, ".bai")
+  bam_bai <- file.path(dirname(bam_file),
+                       paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM BQSR para HaplotypeCaller: ", bam_file)
@@ -895,7 +896,6 @@ genotypeGVCF <- function(folder_fasta, output_dir, fastq_dir) {
 #   out_file <- file.path(
 #     output_dir,
 #     "variantCalling",
-#     paste0(output_file_name, ".snps.vqsr.vcf")
 #   )
 #
 #   ## Aplicar VQSR solo si no existe
