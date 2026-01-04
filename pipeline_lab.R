@@ -635,24 +635,33 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
   fasta_file <- path.expand(fn_exists_fasta(folder_fasta))
   
   ## =========================
-  ## 2) Directorio de mapeo
+  ## 2) BED del exoma (OBLIGATORIO EN CLÍNICA)
+  ## =========================
+  bed_file <- path.expand("./MGI_Exome_Capture_V5.bed")
+  
+  if (!file.exists(bed_file)) {
+    stop("ERROR CRÍTICO: no existe el BED de captura del exoma: ", bed_file)
+  }
+  
+  ## =========================
+  ## 3) Directorio de mapeo
   ## =========================
   mapping_output_dir <- path.expand(file.path(output_dir, "mapping_output"))
   
   ## =========================
-  ## 3) Nombre base de la muestra (FUENTE ÚNICA)
+  ## 4) Nombre base de la muestra (FUENTE ÚNICA)
   ## =========================
   sample_id <- get_sample_name(fastq_dir)
   
   ## =========================
-  ## 4) BAM de entrada (BQSR aplicado + RG)
+  ## 5) BAM de entrada (BQSR aplicado + RG)
   ## =========================
-  bam_file <- file.path(mapping_output_dir,
-                        paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam"))
+  bam_file <- file.path(
+    mapping_output_dir,
+    paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam")
+  )
   
-  bam_bai <- file.path(dirname(bam_file),
-                       paste0(tools::file_path_sans_ext(basename(bam_file)), ".bai"))  # .bai
-  
+  bam_bai <- paste0(bam_file, ".bai")
   
   if (!file.exists(bam_file)) {
     stop("No existe el BAM BQSR para HaplotypeCaller: ", bam_file)
@@ -663,20 +672,19 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
   }
   
   ## =========================
-  ## 5) Directorio y archivo de salida
+  ## 6) Directorio y archivo de salida
   ## =========================
   out_dir <- path.expand(file.path(output_dir, "variantCalling"))
   dir.create(out_dir, showWarnings = FALSE, recursive = TRUE)
   
   out_file <- file.path(out_dir, paste0(sample_id, ".g.vcf.gz"))
-  
-  out_tbi <- paste0(out_file, ".tbi")
+  out_tbi  <- paste0(out_file, ".tbi")
   
   ## =========================
-  ## 6) Ejecutar HaplotypeCaller (GVCF)
+  ## 7) Ejecutar HaplotypeCaller (GVCF + BED)
   ## =========================
   if (!file.exists(out_file)) {
-    message("#### HaplotypeCaller (GVCF) ####")
+    message("#### HaplotypeCaller (GVCF + BED exoma) ####")
     
     gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
     
@@ -684,22 +692,20 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
       gatk_bin,
       args = c(
         "HaplotypeCaller",
-        "-I",
-        bam_file,
-        "-R",
-        fasta_file,
-        "-ERC",
-        "GVCF",
-        "--native-pair-hmm-threads",
-        "8",
-        "-O",
-        out_file
+        "-R", fasta_file,
+        "-I", bam_file,
+        "-L", bed_file,                # <<< CLÍNICO
+        "-ERC", "GVCF",
+        "--native-pair-hmm-threads", "8",
+        "-O", out_file
       )
     )
     
     if (ret != 0 || !file.exists(out_file)) {
-      stop("ERROR CRÍTICO: HaplotypeCaller falló para la muestra ",
-           sample_id)
+      stop(
+        "ERROR CRÍTICO: HaplotypeCaller falló para la muestra ",
+        sample_id
+      )
     }
     
   } else {
@@ -707,22 +713,25 @@ haplotype_caller <- function(output_dir, folder_fasta, fastq_dir) {
   }
   
   ## =========================
-  ## 7) Verificación OBLIGATORIA del índice .tbi
+  ## 8) Verificación OBLIGATORIA del índice .tbi
   ## =========================
   if (!file.exists(out_tbi)) {
     message("Índice .tbi no encontrado. Generando índice...")
     
-    gatk_bin <- path.expand("~/tools/gatk-4.6.1.0/gatk")
-    
-    ret <- system2(gatk_bin, args = c("IndexFeatureFile", "-I", out_file))
+    ret <- system2(
+      gatk_bin,
+      args = c("IndexFeatureFile", "-I", out_file)
+    )
     
     if (ret != 0 || !file.exists(out_tbi)) {
-      stop("ERROR CRÍTICO: No se pudo generar el índice .tbi para ",
-           basename(out_file))
+      stop(
+        "ERROR CRÍTICO: No se pudo generar el índice .tbi para ",
+        basename(out_file)
+      )
     }
   }
   
-  message("HaplotypeCaller completado correctamente (GVCF + TBI verificados)")
+  message("HaplotypeCaller completado correctamente (GVCF + BED + TBI verificados)")
 }
 
 
@@ -999,20 +1008,17 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "--filter-name", "QD2",
       "--filter-expression", "QD<2.0",
       
-      "--filter-name", "FS60",
-      "--filter-expression", "FS>60.0",
+      "--filter-name", "FS200",
+      "--filter-expression", "FS>200.0",
       
-      "--filter-name", "MQ40",
-      "--filter-expression", "MQ<40.0",
+      "--filter-name", "MQ30",
+      "--filter-expression", "MQ<30.0",
       
       "--filter-name", "MQRS12",
       "--filter-expression", "MQRankSum<-12.5",
       
-      "--filter-name", "RPRS8",
-      "--filter-expression", "ReadPosRankSum<-8.0",
-      
-      "--filter-name", "SOR3",
-      "--filter-expression", "SOR>3.0"
+      "--filter-name", "SOR5",
+      "--filter-expression", "SOR>5.0"
     )
     
     argfile <- tempfile(fileext = ".args")
@@ -1052,11 +1058,9 @@ variantFiltration <- function(folder_fasta, output_dir, fastq_dir) {
       "--filter-name", "QD2",
       "--filter-expression", "QD<2.0",
       
-      "--filter-name", "FS200",
-      "--filter-expression", "FS>200.0",
-      
-      "--filter-name", "RPRS20",
-      "--filter-expression", "ReadPosRankSum<-20.0",
+      "--filter-name", "FS300",
+      "--filter-expression", "FS>300.0",
+    
       
       "--filter-name", "SOR10",
       "--filter-expression", "SOR>10.0"
@@ -2574,6 +2578,81 @@ compute_stats <- function(fastq_dir, output_dir, muestra) {
 }
 
 
+verify_bqsr_minimal <- function(output_dir, fastq_dir) {
+  sample_id <- get_sample_name(fastq_dir)
+  
+  mapping_dir <- file.path(output_dir, "mapping_output")
+  
+  bam_pre  <- file.path(mapping_dir,
+                        paste0(sample_id, ".sorted.rg.mark_dup.bam"))
+  bam_post <- file.path(mapping_dir,
+                        paste0(sample_id, ".sorted.rg.mark_dup_bqsr.bam"))
+  
+  recal_table <- file.path(mapping_dir,
+                           paste0(sample_id, ".recal_data.table"))
+  
+  ## ---------------------------
+  ## 1) Existencia básica
+  ## ---------------------------
+  if (!file.exists(bam_pre))
+    stop("BQSR CHECK: no existe BAM pre-BQSR: ", bam_pre)
+  
+  if (!file.exists(bam_post))
+    stop("BQSR CHECK: no existe BAM post-BQSR: ", bam_post)
+  
+  if (!file.exists(recal_table))
+    stop("BQSR CHECK: no existe tabla recal_data.table")
+  
+  ## ---------------------------
+  ## 2) Verificar que el BAM CAMBIÓ
+  ## ---------------------------
+  size_pre  <- file.info(bam_pre)$size
+  size_post <- file.info(bam_post)$size
+  
+  size_diff <- abs(size_post - size_pre) / size_pre
+  
+  if (size_diff < 0.001) {
+    stop(
+      "BQSR CHECK: el BAM post-BQSR es prácticamente idéntico al pre-BQSR\n",
+      "Esto indica que ApplyBQSR NO tuvo efecto real."
+    )
+  }
+  
+  ## ---------------------------
+  ## 3) Verificar presencia de etiqueta BQSR
+  ## ---------------------------
+  header_post <- system2(
+    "samtools",
+    c("view", "-H", bam_post),
+    stdout = TRUE
+  )
+  
+  if (!any(grepl("BQSR", header_post, ignore.case = TRUE))) {
+    warning(
+      "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
+      "No es fatal, pero revisa ApplyBQSR si hay dudas."
+    )
+  }
+  
+  ## ---------------------------
+  ## 4) Verificar que QUAL no es constante (sanity check)
+  ## ---------------------------
+  qual_vals <- system2(
+    "samtools",
+    c("view", bam_post, "| head -n 500 | cut -f 11"),
+    stdout = TRUE
+  )
+  
+  if (length(unique(qual_vals)) < 5) {
+    warning(
+      "BQSR CHECK: poca variabilidad en calidades de bases.\n",
+      "Esto NO es prueba de error, pero es atípico."
+    )
+  }
+  
+  message("BQSR CHECK: verificación mínima completada correctamente")
+  invisible(TRUE)
+}
 
 
 ###=====main=============#########
@@ -2628,6 +2707,11 @@ base_recalibrator(folder_fasta, output_dir, folder_data_gatk, fastq_dir)
 ### aplicamos el recalibrado
 applybqsr(folder_fasta, output_dir, fastq_dir)
 ## estadisticas del pieline bam
+
+verify_bqsr_minimal(output_dir, fastq_dir)
+
+
+
 bam_statistics(folder_fasta, fastq_dir, output_dir)
 ## llamamos a las variantes
 haplotype_caller(output_dir, folder_fasta, fastq_dir)
