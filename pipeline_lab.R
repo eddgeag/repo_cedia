@@ -313,20 +313,28 @@ bwamem <- function(
   # ---------------------------
   message("#### MAPPING (bwa mem, sin RG) ####")
   
-  system2(
-    bwa_bin,
-    args = c(
-      "mem",
-      "-M",
-      "-t", as.character(threads),
-      fasta_file,
-      r1,
-      r2
-    ),
-    stdout = sam_file,
-    stderr = TRUE
+  cmd <- c(
+    "mem",
+    "-M",
+    "-t", as.character(threads),
+    fasta_file,
+    r1,
+    r2
   )
   
+  message("Ejecutando comando:")
+  message(paste(shQuote(bwa_bin), paste(shQuote(cmd), collapse = " ")))
+  
+  if(!file.exists(sam_file)){
+    system2(
+      command = bwa_bin,
+      args    = cmd,
+      stdout  = sam_file,
+      stderr  = file.path(mapping_output_dir, paste0(sample_id, ".bwa.stderr.txt"))
+    )
+    
+  }
+
   if (!file.exists(sam_file)) {
     stop("ERROR CRÍTICO: bwa mem falló para ", sample_id)
   }
@@ -334,19 +342,22 @@ bwamem <- function(
   # ---------------------------
   # 6) SAM → BAM
   # ---------------------------
-  system2(
-    samtools_bin,
-    args = c(
-      "view",
-      "-b",
-      "-h",
-      "-@", as.character(threads),
-      sam_file
-    ),
-    stdout = bam_file,
-    stderr = TRUE
-  )
-  
+  if(!file.exists(bam_file)){
+    system2(
+      samtools_bin,
+      args = c(
+        "view",
+        "-b",
+        "-h",
+        "-@", as.character(threads),
+        sam_file
+      ),
+      stdout = bam_file,
+      stderr = TRUE
+    )
+    
+  }
+
   if (!file.exists(bam_file)) {
     stop("samtools view falló para ", sample_id)
   }
@@ -354,19 +365,22 @@ bwamem <- function(
   # ---------------------------
   # 7) Sort + index (GATK)
   # ---------------------------
-  system2(
-    gatk_bin,
-    args = c(
-      "SortSam",
-      "-I", bam_file,
-      "-O", sorted_bam,
-      "-SORT_ORDER", "coordinate",
-      "-CREATE_INDEX", "true"
-    ),
-    stdout = TRUE,
-    stderr = TRUE
-  )
-  
+  if(!file.exists(sorted_bam)){
+    system2(
+      gatk_bin,
+      args = c(
+        "SortSam",
+        "-I", bam_file,
+        "-O", sorted_bam,
+        "-SORT_ORDER", "coordinate",
+        "-CREATE_INDEX", "true"
+      ),
+      stdout = TRUE,
+      stderr = TRUE
+    )
+    
+  }
+
   if (!file.exists(sorted_bam)) {
     stop("SortSam falló para ", sample_id)
   }
@@ -1346,10 +1360,10 @@ variantFiltration <- function(
   system2(gatk_bin, c(
     "VariantFiltration",
     "-R", fasta_file, "-V", snps_vcf, "-O", snps_filt_vcf,
-    "--filter-name", "QD2",   "--filter-expression", "QD < 2.0",
-    "--filter-name", "MQ40",  "--filter-expression", "MQ < 40.0",
-    "--filter-name", "FS60",  "--filter-expression", "FS > 60.0",
-    "--filter-name", "SOR3",  "--filter-expression", "SOR > 3.0"
+    "--filter-name", "QD2",   "--filter-expression", "QD<2.0",
+    "--filter-name", "MQ40",  "--filter-expression", "MQ<40.0",
+    "--filter-name", "FS60",  "--filter-expression", "FS>60.0",
+    "--filter-name", "SOR3",  "--filter-expression", "SOR>3.0"
   ))
   
   ## INDELs
@@ -1361,9 +1375,9 @@ variantFiltration <- function(
   system2(gatk_bin, c(
     "VariantFiltration",
     "-R", fasta_file, "-V", indels_vcf, "-O", indels_filt_vcf,
-    "--filter-name", "QD2",    "--filter-expression", "QD < 2.0",
-    "--filter-name", "FS200",  "--filter-expression", "FS > 200.0",
-    "--filter-name", "SOR5",   "--filter-expression", "SOR > 5.0"
+    "--filter-name", "QD2",    "--filter-expression", "QD<2.0",
+    "--filter-name", "FS200",  "--filter-expression", "FS>200.0",
+    "--filter-name", "SOR5",   "--filter-expression", "SOR>5.0"
   ))
   
   ## Merge
