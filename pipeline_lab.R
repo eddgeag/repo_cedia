@@ -345,26 +345,23 @@ bwamem <- function(
   if (!file.exists(bam_file)) {
     
     system2(
-      command = "bash",
+      command = samtools_bin,
       args = c(
-        "-c",
-        paste(
-          shQuote(samtools_bin),
-          "view",
-          "-b",
-          "-h",
-          "-@", threads,
-          shQuote(sam_file),
-          ">",
-          shQuote(bam_file)
-        )
+        "view",
+        "-b",
+        "-h",
+        "-@", as.character(threads),
+        sam_file,
+        "-o", bam_file
       ),
+      stdout = NULL,
       stderr = TRUE
     )
+    
   }
   
-  if (!file.exists(bam_file)) {
-    stop("samtools view falló para ", sample_id)
+  if (!file.exists(bam_file) || file.info(bam_file)$size == 0) {
+    stop("ERROR CRÍTICO: BAM vacío o no generado: ", bam_file)
   }
   
   # ---------------------------
