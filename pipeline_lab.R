@@ -1628,7 +1628,7 @@ anotation <- function(
   if (bgzip_path == "")    stop("bgzip no encontrado")
   
   # Java >= 21
-  jv <- paste(system2(java_path, "-version", stderr = TRUE), collapse = " ")
+  jv <- paste(system2(java_path, "-version", stdout = TRUE, stderr = TRUE), collapse = " ")
   if (!grepl("version \"(21|22|23|24|25)", jv))
     stop("snpEff requiere Java >= 21")
   
@@ -1741,22 +1741,38 @@ anotation <- function(
   # =========================================================
   # 11) dbNSFP REDUCIDO (FINAL CLÍNICO)
   # =========================================================
+  # =========================================================
+  # 11) dbNSFP REDUCIDO (FINAL CLÍNICO)  ✅ CORREGIDO
+  # =========================================================
   campos <- paste(dbnsfp_fields, collapse = ",")
   tmp <- sub("\\.gz$", "", f6)
   
   if (!file.exists(f6) || overwrite) {
     system2(
-      java_path,
-      c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
-        "dbnsfp", "-v", "-db", dbnsfp_db,
-        "-f", campos, f5,
-        stderr = TRUE),
-      stdout = tmp
+      command = java_path,
+      args = c(
+        paste0("-Xmx", java_mem),
+        "-jar", snpsift_jar,
+        "dbnsfp",
+        "-v",
+        "-db", dbnsfp_db,
+        "-f", campos,
+        f5
+      ),
+      stdout = tmp,
+      stderr = TRUE
     )
     
-    if (!file.exists(tmp)) stop("dbNSFP reducido falló")
+    if (!file.exists(tmp)) {
+      stop("ERROR CRÍTICO: dbNSFP reducido falló (no se generó VCF)")
+    }
     
-    system2(bgzip_path, c("-f", tmp))
+    system2(
+      command = bgzip_path,
+      args = c("-f", tmp),
+      stdout = TRUE,
+      stderr = TRUE
+    )
   }
   
   # =========================================================
