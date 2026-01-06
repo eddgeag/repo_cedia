@@ -79,7 +79,7 @@ control_calidad <- function(fastq_dir,
     command = fastqc_path,
     args    = args,
     stdout  = NULL,
-    stderr  = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -153,7 +153,7 @@ index_fasta_samtools <- function(folder_fasta,
     command = samtools_path,
     args    = c("faidx", fasta_file),
     stdout  = NULL,
-    stderr  = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -210,7 +210,7 @@ index_bwa <- function(folder_fasta,
     command = bwa_path,
     args    = c("index", fasta_file),
     stdout  = NULL,
-    stderr  = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -303,7 +303,7 @@ bwamem <- function(fastq_dir,
       command = bwa_bin,
       args    = cmd,
       stdout  = sam_file,
-      stderr  = file.path(mapping_output_dir, paste0(sample_id, ".bwa.stderr.txt"))
+      stderr  = ""
     )
     
   }
@@ -329,7 +329,7 @@ bwamem <- function(fastq_dir,
         bam_file
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr = ""
     )
     
   }
@@ -356,7 +356,7 @@ bwamem <- function(fastq_dir,
         "true"
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
     
   }
@@ -443,7 +443,7 @@ add_read_groups <- function(output_dir,
       "true"
     ),
     stdout = NULL,
-    stderr = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -498,7 +498,7 @@ markdups <- function(output_dir,
     samtools_path,
     args = c("view", "-H", bam_in),
     stdout = TRUE,
-    stderr = TRUE
+    stderr  = ""
   )
   
   
@@ -544,7 +544,7 @@ markdups <- function(output_dir,
         "STRICT"
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
     
     if (!file.exists(bam_out)) {
@@ -572,7 +572,7 @@ markdups <- function(output_dir,
       gatk_bin,
       args = c("BuildBamIndex", "-I", bam_out),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -641,7 +641,7 @@ create_dict <- function(folder_fasta,
       fasta_dict
     ),
     stdout = NULL,
-    stderr = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -764,7 +764,7 @@ base_recalibrator <- function(folder_fasta,
     command = gatk_bin,
     args    = args,
     stdout = NULL,
-    stderr = TRUE
+    stderr  = ""
   )
   
   # ---------------------------
@@ -886,7 +886,7 @@ applybqsr <- function(folder_fasta,
         bam_out
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   if (!file.exists(bam_out)) {
@@ -903,7 +903,7 @@ applybqsr <- function(folder_fasta,
       command = gatk_bin,
       args = c("BuildBamIndex", "-I", bam_out),
       stdout = TRUE,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1014,7 +1014,7 @@ bam_statistics <- function(folder_fasta,
         out_prefix
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   if (!file.exists(expected_file)) {
@@ -1031,7 +1031,7 @@ bam_statistics <- function(folder_fasta,
     command = multiqc_path,
     args = c(out_dir, "-o", out_dir),
     stdout = NULL,
-    stderr = TRUE
+    stderr  = ""
   )
   
   message("Métricas BAM generadas correctamente")
@@ -1142,7 +1142,7 @@ haplotype_caller <- function(output_dir,
         out_file
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   if (!file.exists(out_file)) {
@@ -1160,7 +1160,7 @@ haplotype_caller <- function(output_dir,
       command = gatk_bin,
       args = c("IndexFeatureFile", "-I", out_file),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1252,7 +1252,7 @@ genotypeGVCFs <- function(folder_fasta,
         file_out
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   if (!file.exists(file_out)) {
@@ -1269,7 +1269,7 @@ genotypeGVCFs <- function(folder_fasta,
       command = gatk_bin,
       args = c("IndexFeatureFile", "-I", file_out),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1360,7 +1360,7 @@ variantFiltration <- function(folder_fasta,
         snps_vcf
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1386,7 +1386,7 @@ variantFiltration <- function(folder_fasta,
         indels_vcf
       ),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1438,7 +1438,7 @@ variantFiltration <- function(folder_fasta,
       gatk_bin,
       args = c("VariantFiltration", "--arguments_file", argfile_snps),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1484,7 +1484,7 @@ variantFiltration <- function(folder_fasta,
       gatk_bin,
       args = c("VariantFiltration", "--arguments_file", argfile_indels),
       stdout = NULL,
-      stderr = TRUE
+      stderr  = ""
     )
   }
   
@@ -1509,7 +1509,7 @@ variantFiltration <- function(folder_fasta,
       merged_vcf
     ),
     stdout = NULL,
-    stderr = TRUE
+    stderr  = ""
   )
   }
   if (!file.exists(merged_vcf)) {
@@ -1544,13 +1544,14 @@ analysisReady <- function(output_dir,
   out_pass     <- file.path(var_dir, paste0(sample_id, ".hardfiltered.pass.vcf"))
   out_pass_gz  <- paste0(out_pass, ".gz")
   out_tbi      <- paste0(out_pass_gz, ".tbi")
+  
   report_txt   <- file.path(var_dir, paste0(sample_id, ".filter_report.txt"))
   
   ## ---- reporte de filtros ----
   stats <- system2(bcftools,
                    c("stats", in_vcf),
                    stdout = TRUE,
-                   stderr = TRUE)
+                   stderr  = "")
   
   writeLines(stats, report_txt)
   
@@ -1624,7 +1625,7 @@ anotation <- function(folder_fasta,
     stop("bgzip no encontrado")
   
   # Java >= 21
-  jv <- paste(system2(java_path, "-version", stdout = TRUE, stderr = TRUE),
+  jv <- paste(system2(java_path, "-version", stdout = TRUE, stderr  = ""),
               collapse = " ")
   if (!grepl("version \"(21|22|23|24|25)", jv))
     stop("snpEff requiere Java >= 21")
@@ -1932,7 +1933,7 @@ verify_bqsr_minimal <- function(output_dir,
     samtools_path,
     args = c("view", "-H", bam_post),
     stdout = TRUE,
-    stderr = TRUE
+    stderr  = ""
   )
   
   if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
@@ -1949,7 +1950,7 @@ verify_bqsr_minimal <- function(output_dir,
     samtools_path,
     args = c("view", bam_post),
     stdout = TRUE,
-    stderr = TRUE
+    stderr  = ""
   )
   
   reads <- reads[seq_len(min(length(reads), 500))]
