@@ -88,7 +88,7 @@ control_calidad <- function(
   status <- system2(
     command = fastqc_path,
     args    = args,
-    stdout  = TRUE,
+    stdout  = NULL,
     stderr  = TRUE
   )
   
@@ -164,7 +164,7 @@ index_fasta_samtools <- function(
   status <- system2(
     command = samtools_path,
     args    = c("faidx", fasta_file),
-    stdout  = TRUE,
+    stdout  = NULL,
     stderr  = TRUE
   )
   
@@ -223,7 +223,7 @@ index_bwa <- function(
   status <- system2(
     command = bwa_path,
     args    = c("index", fasta_file),
-    stdout  = TRUE,
+    stdout  = NULL,
     stderr  = TRUE
   )
   
@@ -342,22 +342,27 @@ bwamem <- function(
   # ---------------------------
   # 6) SAM → BAM
   # ---------------------------
-  if(!file.exists(bam_file)){
+  if (!file.exists(bam_file)) {
+    
     system2(
-      samtools_bin,
+      command = "bash",
       args = c(
-        "view",
-        "-b",
-        "-h",
-        "-@", as.character(threads),
-        sam_file
+        "-c",
+        paste(
+          shQuote(samtools_bin),
+          "view",
+          "-b",
+          "-h",
+          "-@", threads,
+          shQuote(sam_file),
+          ">",
+          shQuote(bam_file)
+        )
       ),
-      stdout = bam_file,
       stderr = TRUE
     )
-    
   }
-
+  
   if (!file.exists(bam_file)) {
     stop("samtools view falló para ", sample_id)
   }
@@ -375,7 +380,7 @@ bwamem <- function(
         "-SORT_ORDER", "coordinate",
         "-CREATE_INDEX", "true"
       ),
-      stdout = TRUE,
+      stdout = NULL,
       stderr = TRUE
     )
     
@@ -463,7 +468,7 @@ add_read_groups <- function(
       "-RGPU", rg_unit,
       "-CREATE_INDEX", "true"
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -524,6 +529,7 @@ markdups <- function(
     stderr = TRUE
   )
   
+  
   if (!any(grepl("^@RG", header))) {
     stop("ERROR CRÍTICO: el BAM NO contiene Read Groups: ", bam_in)
   }
@@ -562,7 +568,7 @@ markdups <- function(
         "--CREATE_INDEX", "true",
         "--VALIDATION_STRINGENCY", "STRICT"
       ),
-      stdout = TRUE,
+      stdout = NULL,
       stderr = TRUE
     )
     
@@ -589,7 +595,7 @@ markdups <- function(
     system2(
       gatk_bin,
       args = c("BuildBamIndex", "-I", bam_out),
-      stdout = TRUE,
+      stdout = NULL,
       stderr = TRUE
     )
   }
@@ -658,7 +664,7 @@ create_dict <- function(
       "-R", fasta_file,
       "-O", fasta_dict
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -790,7 +796,7 @@ base_recalibrator <- function(
   system2(
     command = gatk_bin,
     args    = args,
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -919,7 +925,7 @@ applybqsr <- function(
       "--bqsr-recal-file", recal_table,
       "-O", bam_out
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -1050,7 +1056,7 @@ bam_statistics <- function(
       "-I", bam_file,
       "-O", out_prefix
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -1069,7 +1075,7 @@ bam_statistics <- function(
   system2(
     command = multiqc_path,
     args = c(out_dir, "-o", out_dir),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -1177,7 +1183,7 @@ haplotype_caller <- function(
       "--native-pair-hmm-threads", as.character(threads),
       "-O", out_file
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -1194,7 +1200,7 @@ haplotype_caller <- function(
     system2(
       command = gatk_bin,
       args = c("IndexFeatureFile", "-I", out_file),
-      stdout = TRUE,
+      stdout = NULL,
       stderr = TRUE
     )
   }
@@ -1287,7 +1293,7 @@ genotypeGVCFs <- function(
       "-V", file_in,
       "-O", file_out
     ),
-    stdout = TRUE,
+    stdout = NULL,
     stderr = TRUE
   )
   
@@ -1304,7 +1310,7 @@ genotypeGVCFs <- function(
     system2(
       command = gatk_bin,
       args = c("IndexFeatureFile", "-I", file_out),
-      stdout = TRUE,
+      stdout = NULL,
       stderr = TRUE
     )
   }
@@ -1427,10 +1433,13 @@ analysisReady <- function(
   stats <- system2(
     bcftools,
     c("stats", in_vcf),
-    stdout = TRUE
+    stdout = TRUE,
+    stderr = TRUE
   )
+  
   writeLines(stats, report_txt)
   
+
   ## ---- PASS ----
   system2(
     bcftools,
@@ -1558,7 +1567,8 @@ anotation <- function(
   if (!file.exists(f1) || overwrite)
     system2(java_path, c(paste0("-Xmx", java_mem), "-jar", snpeff_jar,
                          snpeff_genome, "-v", in_vcf),
-            stdout = f1)
+            stdout = f1,
+            stderr = TRUE)
   
   if (!file.exists(f1)) stop("snpEff falló")
   
@@ -1568,7 +1578,8 @@ anotation <- function(
   if (!file.exists(f2) || overwrite)
     system2(java_path, c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
                          "varType", "-v", f1),
-            stdout = f2)
+            stdout = f2,
+            stderr = TRUE)
   
   # =========================================================
   # 8) ClinVar
@@ -1576,7 +1587,8 @@ anotation <- function(
   if (!file.exists(f3) || overwrite)
     system2(java_path, c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
                          "annotate", "-v", clinvar_vcf, f2),
-            stdout = f3)
+            stdout = f3,
+            stderr = TRUE)
   
   # =========================================================
   # 9) dbNSFP FULL
@@ -1584,7 +1596,8 @@ anotation <- function(
   if (!file.exists(f4) || overwrite)
     system2(java_path, c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
                          "dbnsfp", "-v", "-db", dbnsfp_db, f3),
-            stdout = f4)
+            stdout = f4,
+            stderr = TRUE)
   
   # =========================================================
   # 10) GWAS (opcional)
@@ -1593,7 +1606,8 @@ anotation <- function(
     if (!file.exists(f5) || overwrite)
       system2(java_path, c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
                            "annotate", "-v", gwas_db, f4),
-              stdout = f5)
+              stdout = f5,
+              stderr = TRUE)
   }
   
   # =========================================================
@@ -1607,7 +1621,8 @@ anotation <- function(
       java_path,
       c(paste0("-Xmx", java_mem), "-jar", snpsift_jar,
         "dbnsfp", "-v", "-db", dbnsfp_db,
-        "-f", campos, f5),
+        "-f", campos, f5,
+        stderr = TRUE),
       stdout = tmp
     )
     
