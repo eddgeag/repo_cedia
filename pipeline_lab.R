@@ -1321,6 +1321,7 @@ genotypeGVCFs <- function(
 }
 
 
+
 variantFiltration <- function(
     folder_fasta,
     output_dir,
@@ -1329,24 +1330,52 @@ variantFiltration <- function(
     overwrite = FALSE
 ) {
   
+  ## =========================
+  ## 0) Normalización básica
+  ## =========================
   folder_fasta <- path.expand(folder_fasta)
   output_dir   <- path.expand(output_dir)
   fastq_dir    <- path.expand(fastq_dir)
   gatk_bin     <- path.expand(gatk_bin)
   
-  fasta_file <- fn_exists_fasta(folder_fasta)
-  sample_id  <- get_sample_name(fastq_dir)
+  if (!file.exists(gatk_bin)) {
+    stop("gatk_bin no existe: ", gatk_bin)
+  }
   
+  ## =========================
+  ## 1) FASTA de referencia
+  ## =========================
+  fasta_file <- fn_exists_fasta(folder_fasta)
+  
+  ## =========================
+  ## 2) Nombre base de la muestra (FUENTE ÚNICA)
+  ## =========================
+  sample_id <- get_sample_name(fastq_dir)
+  
+  ## =========================
+  ## 3) Directorio de variantes
+  ## =========================
   var_dir <- file.path(output_dir, "variantCalling")
   dir.create(var_dir, recursive = TRUE, showWarnings = FALSE)
   
+  ## =========================
+  ## 4) VCF de entrada
+  ## =========================
   in_vcf <- file.path(var_dir, paste0(sample_id, "_sample.raw.vcf.gz"))
-  if (!file.exists(in_vcf)) stop("VCF de entrada no existe")
   
+  if (!file.exists(in_vcf)) {
+    stop("No existe el VCF de entrada para hard-filter: ", in_vcf)
+  }
+  
+  ## =========================
+  ## 5) Archivos intermedios
+  ## =========================
   snps_vcf        <- file.path(var_dir, paste0(sample_id, ".snps.vcf"))
   indels_vcf      <- file.path(var_dir, paste0(sample_id, ".indels.vcf"))
+  
   snps_filt_vcf   <- file.path(var_dir, paste0(sample_id, ".snps.hardfiltered.vcf"))
   indels_filt_vcf <- file.path(var_dir, paste0(sample_id, ".indels.hardfiltered.vcf"))
+  
   merged_vcf      <- file.path(var_dir, paste0(sample_id, ".hardfiltered.vcf"))
   
   if (file.exists(merged_vcf) && !overwrite) {
@@ -1354,50 +1383,152 @@ variantFiltration <- function(
     return(invisible(merged_vcf))
   }
   
-  ## SNPs
-  system2(gatk_bin, c(
-    "SelectVariants", "-R", fasta_file, "-V", in_vcf,
-    "--select-type-to-include", "SNP", "-O", snps_vcf
-  ))
+  ## =========================
+  ## 6) SelectVariants SNPs
+  ## =========================
+  if (!file.exists(snps_vcf) || overwrite) {
+    system2(
+      gatk_bin,
+      args = c(
+        "SelectVariants",
+        "-R", fasta_file,
+        "-V", in_vcf,
+        "--select-type-to-include", "SNP",
+        "-O", snps_vcf
+      ),
+      stdout = NULL,
+      stderr = TRUE
+    )
+  }
   
-  system2(gatk_bin, c(
-    "VariantFiltration",
-    "-R", fasta_file, "-V", snps_vcf, "-O", snps_filt_vcf,
-    "--filter-name", "QD2",   "--filter-expression", "QD<2.0",
-    "--filter-name", "MQ40",  "--filter-expression", "MQ<40.0",
-    "--filter-name", "FS60",  "--filter-expression", "FS>60.0",
-    "--filter-name", "SOR3",  "--filter-expression", "SOR>3.0"
-  ))
+  if (!file.exists(snps_vcf)) {
+    stop("SelectVariants SNPs no generó archivo: ", snps_vcf)
+  }
   
-  ## INDELs
-  system2(gatk_bin, c(
-    "SelectVariants", "-R", fasta_file, "-V", in_vcf,
-    "--select-type-to-include", "INDEL", "-O", indels_vcf
-  ))
+  ## =========================
+  ## 7) SelectVariants INDELs
+  ## =========================
+  if (!file.exists(indels_vcf) || overwrite) {
+    system2(
+      gatk_bin,
+      args = c(
+        "SelectVariants",
+        "-R", fasta_file,
+        "-V", in_vcf,
+        "--select-type-to-include", "INDEL",
+        "-O", indels_vcf
+      ),
+      stdout = NULL,
+      stderr = TRUE
+    )
+  }
   
-  system2(gatk_bin, c(
-    "VariantFiltration",
-    "-R", fasta_file, "-V", indels_vcf, "-O", indels_filt_vcf,
-    "--filter-name", "QD2",    "--filter-expression", "QD<2.0",
-    "--filter-name", "FS200",  "--filter-expression", "FS>200.0",
-    "--filter-name", "SOR5",   "--filter-expression", "SOR>5.0"
-  ))
+  if (!file.exists(indels_vcf)) {
+    stop("SelectVariants INDELs no generó archivo: ", indels_vcf)
+  }
   
-  ## Merge
-  system2(gatk_bin, c(
-    "MergeVcfs",
-    "-I", snps_filt_vcf,
-    "-I", indels_filt_vcf,
-    "-O", merged_vcf
-  ))
+  ## =========================
+  ## 8) Hard-filter SNPs (ARG FILE)
+  ## =========================
   
-  if (!file.exists(merged_vcf))
-    stop("No se pudo crear hardfiltered.vcf")
+  if (!file.exists(snps_filt_vcf) || overwrite) {
+    
+    args_snps <- c(
+      "-R", fasta_file,
+      "-V", snps_vcf,
+      "-O", snps_filt_vcf,
+      
+      "--filter-name", "QD2",
+      "--filter-expression", "QD<2.0",
+      
+      "--filter-name", "FS60",
+      "--filter-expression", "FS>60.0",
+      
+      "--filter-name", "MQ40",
+      "--filter-expression", "MQ<40.0",
+      
+      "--filter-name", "SOR3",
+      "--filter-expression", "SOR>3.0"
+    )
+    
+    argfile_snps <- tempfile(fileext = ".args")
+    writeLines(args_snps, argfile_snps)
+    
+    message("#### VariantFiltration SNPs ####")
+    message("Arguments file: ", argfile_snps)
+    
+    system2(
+      gatk_bin,
+      args = c("VariantFiltration", "--arguments_file", argfile_snps),
+      stdout = NULL,
+      stderr = TRUE
+    )
+  }
   
+  if (!file.exists(snps_filt_vcf)) {
+    stop("VariantFiltration SNPs no generó archivo: ", snps_filt_vcf)
+  }
+  
+  ## =========================
+  ## 9) Hard-filter INDELs (ARG FILE)
+  ## =========================
+  if (!file.exists(indels_filt_vcf) || overwrite) {
+
+    args_indels <- c(
+      "-R", fasta_file,
+      "-V", indels_vcf,
+      "-O", indels_filt_vcf,
+      
+      "--filter-name", "QD2",
+      "--filter-expression", "QD<2.0",
+      
+      "--filter-name", "FS200",
+      "--filter-expression", "FS>200.0",
+      
+      "--filter-name", "SOR5",
+      "--filter-expression", "SOR>5.0"
+    )
+    
+    argfile_indels <- tempfile(fileext = ".args")
+    writeLines(args_indels, argfile_indels)
+    
+    message("#### VariantFiltration INDELs ####")
+    message("Arguments file: ", argfile_indels)
+    
+    system2(
+      gatk_bin,
+      args = c("VariantFiltration", "--arguments_file", argfile_indels),
+      stdout = NULL,
+      stderr = TRUE
+    )
+  }
+  
+  if (!file.exists(indels_filt_vcf)) {
+    stop("VariantFiltration INDELs no generó archivo: ", indels_filt_vcf)
+  }
+  
+  ## =========================
+  ## 10) Merge SNPs + INDELs
+  ## =========================
+  system2(
+    gatk_bin,
+    args = c(
+      "MergeVcfs",
+      "-I", snps_filt_vcf,
+      "-I", indels_filt_vcf,
+      "-O", merged_vcf
+    ),
+    stdout = NULL,
+    stderr = TRUE
+  )
+  
+  if (!file.exists(merged_vcf)) {
+    stop("No se pudo crear el VCF hardfiltered final: ", merged_vcf)
+  }
+  
+  message("Hard-filter completado correctamente: ", basename(merged_vcf))
   invisible(merged_vcf)
 }
-
-
 
 
 
