@@ -1928,23 +1928,27 @@ verify_bqsr_minimal <- function(output_dir,
   
   # ---------------------------
   # 3) Verificar header (soft check)
-  if(!file.exists(bam_post)){
   # ---------------------------
-  header_post <- system2(
-    samtools_path,
-    args = c("view", "-H", bam_post),
-    stdout = TRUE,
-    stderr  = ""
-  )
-  if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
-    warning(
-      "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
-      "No es fatal, pero conviene revisar ApplyBQSR."
+  # 3) Verificar header (soft check)
+  # ---------------------------
+  if (file.exists(bam_post)) {
+    header_post <- system2(
+      samtools_path,
+      args = c("view", "-H", bam_post),
+      stdout = TRUE,
+      stderr = ""
     )
+    
+    if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
+      warning(
+        "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
+        "No es fatal, pero conviene revisar ApplyBQSR."
+      )
+    }
+  } else {
+    stop("BQSR CHECK: no existe BAM post-BQSR: ", bam_post)
   }
   
-  }
-
   # ---------------------------
   # 4) Sanity check de calidades (correcto)
   # ---------------------------
