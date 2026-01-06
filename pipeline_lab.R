@@ -1936,7 +1936,6 @@ verify_bqsr_minimal <- function(output_dir,
     stdout = TRUE,
     stderr  = ""
   )
-  }
   if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
     warning(
       "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
@@ -1944,6 +1943,8 @@ verify_bqsr_minimal <- function(output_dir,
     )
   }
   
+  }
+
   # ---------------------------
   # 4) Sanity check de calidades (correcto)
   # ---------------------------
