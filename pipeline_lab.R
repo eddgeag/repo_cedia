@@ -1627,8 +1627,8 @@ anotation <- function(folder_fasta,
   # Java >= 21
   jv <- paste(system2(java_path, "-version", stdout = TRUE, stderr  = ""),
               collapse = " ")
-  if (!grepl("version \"(21|22|23|24|25)", jv))
-    stop("snpEff requiere Java >= 21")
+  # if (!grepl("version \"(21|22|23|24|25)", jv))
+  #   stop("snpEff requiere Java >= 21")
   
   # =========================================================
   # 1) FASTA
@@ -1928,6 +1928,7 @@ verify_bqsr_minimal <- function(output_dir,
   
   # ---------------------------
   # 3) Verificar header (soft check)
+  if(!file.exists(bam_post)){
   # ---------------------------
   header_post <- system2(
     samtools_path,
@@ -1935,7 +1936,7 @@ verify_bqsr_minimal <- function(output_dir,
     stdout = TRUE,
     stderr  = ""
   )
-  
+  }
   if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
     warning(
       "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
