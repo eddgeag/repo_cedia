@@ -2034,12 +2034,7 @@ dbnsfp_fields <- c(
   
   # Frecuencia poblacional
   "gnomAD4.1_joint_POPMAX_AF",
-  "gnomAD4.1_joint_POPMAX_POP",
   "dbNSFP_POPMAX_AF",
-  
-  # Constraint
-  "LOEUF",
-  "pLI",
   
   # ClinVar cross-check
   "clinvar_clnsig",
