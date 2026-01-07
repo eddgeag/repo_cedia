@@ -1496,21 +1496,21 @@ variantFiltration <- function(folder_fasta,
   ## =========================
   ## 10) Merge SNPs + INDELs
   ## =========================
-  if(!file.exists(merged_vcf)){
-  system2(
-    gatk_bin,
-    args = c(
-      "MergeVcfs",
-      "-I",
-      snps_filt_vcf,
-      "-I",
-      indels_filt_vcf,
-      "-O",
-      merged_vcf
-    ),
-    stdout = NULL,
-    stderr  = ""
-  )
+  if (!file.exists(merged_vcf)) {
+    system2(
+      gatk_bin,
+      args = c(
+        "MergeVcfs",
+        "-I",
+        snps_filt_vcf,
+        "-I",
+        indels_filt_vcf,
+        "-O",
+        merged_vcf
+      ),
+      stdout = NULL,
+      stderr  = ""
+    )
   }
   if (!file.exists(merged_vcf)) {
     stop("No se pudo crear el VCF hardfiltered final: ", merged_vcf)
@@ -1548,31 +1548,42 @@ analysisReady <- function(output_dir,
   report_txt   <- file.path(var_dir, paste0(sample_id, ".filter_report.txt"))
   
   ## ---- reporte de filtros ----
-  stats <- system2(bcftools,
-                   c("stats", in_vcf),
-                   stdout = TRUE,
-                   stderr  = "")
+  message("reporte de filtros")
+  if (!file.exists(report_txt)) {
+    stats <- system2(bcftools,
+                     c("stats", in_vcf),
+                     stdout = TRUE,
+                     stderr  = "")
+    writeLines(stats, report_txt)
+    
+  }
   
-  writeLines(stats, report_txt)
+  
   
   
   ## ---- PASS ----
-  if(!file.exists(out_pass)){
-  system2(bcftools,
-          c("view", "-f", "PASS", "-O", "v", "-o", out_pass, in_vcf))
+  if (!file.exists(out_pass)) {
+    system2(bcftools,
+            c("view", "-f", "PASS", "-O", "v", "-o", out_pass, in_vcf))
+    
+    if (!file.exists(out_pass)) {
+      stop("No se pudo generar VCF PASS")
+    }
+    
+    system2(bgzip, c("-f", out_pass))
+    system2(bcftools, c("index", "-t", out_pass_gz))
+    
+    if (!file.exists(out_tbi)) {
+      stop("No se pudo indexar VCF PASS")
+    }
+    
   }
-  if (!file.exists(out_pass))
-    stop("No se pudo generar VCF PASS")
-  
-  system2(bgzip, c("-f", out_pass))
-  system2(bcftools, c("index", "-t", out_pass_gz))
-  
-  if (!file.exists(out_tbi))
-    stop("No se pudo indexar VCF PASS")
   
   message("VCF PASS listo + reporte de filtros generado")
   invisible(out_pass_gz)
 }
+
+
 
 
 anotation <- function(folder_fasta,
@@ -1582,9 +1593,7 @@ anotation <- function(folder_fasta,
                       clinvar_vcf,
                       dbnsfp_db,
                       gwas_db = NULL,
-                      # GWAS opcional
                       use_gwas = FALSE,
-                      # <- CONTROL EXPLÍCITO
                       dbnsfp_fields = c(
                         "aaref",
                         "aaalt",
@@ -1623,12 +1632,6 @@ anotation <- function(folder_fasta,
     stop("bcftools no encontrado")
   if (bgzip_path == "")
     stop("bgzip no encontrado")
-  
-  # Java >= 21
-  jv <- paste(system2(java_path, "-version", stdout = TRUE, stderr  = ""),
-              collapse = " ")
-  # if (!grepl("version \"(21|22|23|24|25)", jv))
-  #   stop("snpEff requiere Java >= 21")
   
   # =========================================================
   # 1) FASTA
@@ -1687,78 +1690,66 @@ anotation <- function(folder_fasta,
   f1 <- file.path(anotacion_dir, paste0(sample_id, "_01_snpeff.vcf"))
   f2 <- file.path(anotacion_dir, paste0(sample_id, "_02_varType.vcf"))
   f3 <- file.path(anotacion_dir, paste0(sample_id, "_03_clinvar.vcf"))
-  f4 <- file.path(anotacion_dir, paste0(sample_id, "_04_dbnsfp_full.vcf"))
-  f5 <- if (use_gwas) {
-    file.path(anotacion_dir, paste0(sample_id, "_05_gwas.vcf"))
-  }
-  else {
-    f4
+  
+  f4 <- if (use_gwas) {
+    file.path(anotacion_dir, paste0(sample_id, "_04_gwas.vcf"))
+  } else {
+    f3
   }
   
-  f6 <- file.path(anotacion_dir,
-                  paste0(sample_id, "_06_dbnsfp_reduced.vcf.gz"))
-  f6_tbi <- paste0(f6, ".tbi")
+  f5 <- file.path(anotacion_dir,
+                  paste0(sample_id, "_05_dbnsfp_reduced.vcf.gz"))
+  f5_tbi <- paste0(f5, ".tbi")
   
   # =========================================================
   # 6) snpEff
   # =========================================================
   if (!file.exists(f1) || overwrite) {
     message("#### snpEff ####")
-    
-    ret <- system2(
-      java_path,
-      c(
-        paste0("-Xmx", java_mem),
-        "-jar", snpeff_jar,
-        snpeff_genome,
-        "-v",
-        in_vcf
-      ),
-      stdout = f1
-    )
-    
-    if (ret != 0 || !file.exists(f1) || file.info(f1)$size == 0) {
+    ret <- system2(java_path,
+                   c(
+                     paste0("-Xmx", java_mem),
+                     "-jar",
+                     snpeff_jar,
+                     snpeff_genome,
+                     "-v",
+                     in_vcf
+                   ),
+                   stdout = f1)
+    if (ret != 0 || !file.exists(f1) || file.info(f1)$size == 0)
       stop("ERROR CRÍTICO: snpEff falló")
-    }
   }
   
-  
-  if (!file.exists(f1) || file.info(f1)$size == 0) {
-    stop("ERROR CRÍTICO: snpEff no generó VCF válido: ", f1)
-  }
   # =========================================================
   # 7) varType
   # =========================================================
   if (!file.exists(f2) || overwrite) {
     message("#### SnpSift varType ####")
-    
-    ret <- system2(
-      java_path,
-      c(
-        paste0("-Xmx", java_mem),
-        "-jar", snpsift_jar,
-        "varType",
-        "-v",
-        f1
-      ),
-      stdout = f2
-    )
-    
-    if (ret != 0 || !file.exists(f2) || file.info(f2)$size == 0) {
+    ret <- system2(java_path,
+                   c(
+                     paste0("-Xmx", java_mem),
+                     "-jar",
+                     snpsift_jar,
+                     "varType",
+                     "-v",
+                     f1
+                   ),
+                   stdout = f2)
+    if (ret != 0 || !file.exists(f2) || file.info(f2)$size == 0)
       stop("ERROR CRÍTICO: SnpSift varType falló")
-    }
   }
   
-  # =========================================
+  # =========================================================
   # 8) ClinVar
+  # =========================================================
   if (!file.exists(f3) || overwrite) {
     message("#### SnpSift ClinVar ####")
-    
     ret <- system2(
       java_path,
       c(
         paste0("-Xmx", java_mem),
-        "-jar", snpsift_jar,
+        "-jar",
+        snpsift_jar,
         "annotate",
         "-v",
         clinvar_vcf,
@@ -1766,106 +1757,76 @@ anotation <- function(folder_fasta,
       ),
       stdout = f3
     )
-    
-    if (ret != 0 || !file.exists(f3) || file.info(f3)$size == 0) {
+    if (ret != 0 || !file.exists(f3) || file.info(f3)$size == 0)
       stop("ERROR CRÍTICO: ClinVar annotation falló")
-    }
-  }
-  
-  
-  # =========================================================
-  # 9) dbNSFP FULL
-  # =========================================================
-  if (!file.exists(f4) || overwrite) {
-    message("#### SnpSift dbNSFP FULL ####")
-    
-    ret <- system2(
-      java_path,
-      c(
-        paste0("-Xmx", java_mem),
-        "-jar", snpsift_jar,
-        "dbnsfp",
-        "-v",
-        "-db", dbnsfp_db,
-        f3
-      ),
-      stdout = f4
-    )
-    
-    if (ret != 0 || !file.exists(f4) || file.info(f4)$size == 0) {
-      stop("ERROR CRÍTICO: dbNSFP FULL falló")
-    }
   }
   
   # =========================================================
-  # 10) GWAS (opcional)
+  # 9) GWAS (opcional)
+  # =========================================================
   if (use_gwas) {
-    if (!file.exists(f5) || overwrite) {
+    if (!file.exists(f4) || overwrite) {
       message("#### SnpSift GWAS ####")
-      
       ret <- system2(
         java_path,
         c(
           paste0("-Xmx", java_mem),
-          "-jar", snpsift_jar,
+          "-jar",
+          snpsift_jar,
           "annotate",
           "-v",
           gwas_db,
-          f4
+          f3
         ),
-        stdout = f5
+        stdout = f4
       )
-      
-      if (ret != 0 || !file.exists(f5) || file.info(f5)$size == 0) {
+      if (ret != 0 || !file.exists(f4) || file.info(f4)$size == 0)
         stop("ERROR CRÍTICO: GWAS annotation falló")
-      }
     }
   }
   
-  
   # =========================================================
-  # 11) dbNSFP REDUCIDO (FINAL CLÍNICO)
+  # 10) dbNSFP REDUCIDO (FINAL CLÍNICO)
   # =========================================================
   campos <- paste(dbnsfp_fields, collapse = ",")
-  tmp <- sub("\\.gz$", "", f6)
+  tmp <- sub("\\.gz$", "", f5)
   
-  if (!file.exists(f6) || overwrite) {
+  if (!file.exists(f5) || overwrite) {
     message("#### SnpSift dbNSFP REDUCIDO ####")
-    
     ret <- system2(
       java_path,
       c(
         paste0("-Xmx", java_mem),
-        "-jar", snpsift_jar,
+        "-jar",
+        snpsift_jar,
         "dbnsfp",
         "-v",
-        "-db", dbnsfp_db,
-        "-f", campos,
-        f5
+        "-db",
+        dbnsfp_db,
+        "-f",
+        campos,
+        f4
       ),
       stdout = tmp
     )
-    
-    if (ret != 0 || !file.exists(tmp) || file.info(tmp)$size == 0) {
+    if (ret != 0 || !file.exists(tmp) || file.info(tmp)$size == 0)
       stop("ERROR CRÍTICO: dbNSFP reducido falló")
-    }
     
     system2(bgzip_path, c("-f", tmp))
   }
   
   # =========================================================
-  # 12) Indexación final
+  # 11) Indexación final
   # =========================================================
-  if (!file.exists(f6_tbi))
-    system2(bcftools_path, c("index", "-t", f6))
+  if (!file.exists(f5_tbi))
+    system2(bcftools_path, c("index", "-t", f5))
   
-  if (!file.exists(f6_tbi))
+  if (!file.exists(f5_tbi))
     stop("No se pudo crear índice TBI final")
   
   message("ANOTACIÓN CLÍNICA FINALIZADA CORRECTAMENTE")
-  invisible(f6)
+  invisible(f5)
 }
-
 
 
 
@@ -1931,21 +1892,21 @@ verify_bqsr_minimal <- function(output_dir,
   # ---------------------------
   # 3) Verificar header (soft check)
   # ---------------------------
-  if (file.exists(bam_post)) {
-    header_post <- system2(
-      samtools_path,
-      args = c("view", "-H", bam_post),
-      stdout = TRUE,
-      stderr = ""
+  
+  header_post <- system2(
+    samtools_path,
+    args = c("view", "-H", bam_post),
+    stdout = TRUE,
+    stderr = ""
+  )
+  
+  if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
+    warning(
+      "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
+      "No es fatal, pero conviene revisar ApplyBQSR."
     )
-    
-    if (!any(grepl("BQSR|ApplyBQSR|recal", header_post, ignore.case = TRUE))) {
-      warning(
-        "BQSR CHECK: no se detecta mención explícita de BQSR en el header.\n",
-        "No es fatal, pero conviene revisar ApplyBQSR."
-      )
-    }
-  } else {
+  }
+  else {
     stop("BQSR CHECK: no existe BAM post-BQSR: ", bam_post)
   }
   
@@ -1955,7 +1916,7 @@ verify_bqsr_minimal <- function(output_dir,
   reads <- system2(
     samtools_path,
     args = c("view", bam_post),
-    stdout = TRUE,
+    stdout = NULL,
     stderr  = ""
   )
   
