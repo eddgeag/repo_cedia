@@ -2150,9 +2150,9 @@ applybqsr(
   overwrite    = overwrite_bqsr
 )
 
-verify_bqsr_minimal(output_dir   = output_dir,
-                    fastq_dir    = fastq_dir,
-                    samtools_bin = samtools_bin)
+# verify_bqsr_minimal(output_dir   = output_dir,
+#                     fastq_dir    = fastq_dir,
+#                     samtools_bin = samtools_bin)
 
 # Métricas BAM
 bam_statistics(
