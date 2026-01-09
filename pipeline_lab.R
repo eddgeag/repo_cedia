@@ -1562,7 +1562,7 @@ analysisReady <- function(output_dir,
   
   
   ## ---- VCF COMPLETO (PASS + FAIL) ----
-  out_all_gz <- file.path(var_dir, paste0(sample_id, ".hardfiltered.all.vcf.gz"))
+  out_all_gz <- file.path(var_dir, paste0(sample_id, ".hardfiltered.all.vcf"))
   
   if (!file.exists(out_all_gz)) {
     system2(bcftools,
