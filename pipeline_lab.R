@@ -1561,23 +1561,26 @@ analysisReady <- function(output_dir,
   
   
   
-  ## ---- PASS ----
+  ## ---- VCF COMPLETO (PASS + FAIL) ----
+  out_all_gz <- file.path(var_dir, paste0(sample_id, ".hardfiltered.all.vcf.gz"))
+  
+  if (!file.exists(out_all_gz)) {
+    system2(bcftools,
+            c("view", "-O", "z", "-o", out_all_gz, in_vcf))
+    system2(bgzip, c("-f", out_all_gz))
+    
+    system2(bcftools, c("index", "-t", out_all_gz))
+  }
+  
+  ## ---- VCF PASS (como antes) ----
   if (!file.exists(out_pass)) {
     system2(bcftools,
             c("view", "-f", "PASS", "-O", "v", "-o", out_pass, in_vcf))
-    
-    if (!file.exists(out_pass)) {
-      stop("No se pudo generar VCF PASS")
-    }
-    
     system2(bgzip, c("-f", out_pass))
     system2(bcftools, c("index", "-t", out_pass_gz))
-    
-    if (!file.exists(out_tbi)) {
-      stop("No se pudo indexar VCF PASS")
-    }
-    
   }
+  
+  
   
   message("VCF PASS listo + reporte de filtros generado")
   invisible(out_pass_gz)
@@ -1650,9 +1653,9 @@ anotation <- function(folder_fasta,
              showWarnings = FALSE)
   
   in_vcf <- file.path(variant_dir,
-                      paste0(sample_id, ".hardfiltered.pass.vcf.gz"))
+                      paste0(sample_id, ".hardfiltered.all.vcf.gz"))
   if (!file.exists(in_vcf))
-    stop("VCF PASS no existe: ", in_vcf)
+    stop("VCF PASS all no existe: ", in_vcf)
   
   # =========================================================
   # 3) Recursos
