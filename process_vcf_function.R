@@ -7,7 +7,7 @@
 
 
 
-vcf_process <- function(input,
+vcf_process <- function(vcf_file,
                         # ruta completa al VCF .vcf.gz
                         genes_horizon,
                         # ruta ./archivo_horizon.csv
@@ -26,6 +26,11 @@ vcf_process <- function(input,
   ## DERIVAR RUTAS DESDE input
   ## ============================================================
 
+  
+  vcf_file      <- normalizePath(vcf_file, mustWork = TRUE)
+  genes_horizon <- normalizePath(genes_horizon, mustWork = TRUE)
+  base_lab      <- normalizePath(base_lab, mustWork = TRUE)
+  hpo_file      <- normalizePath(hpo_file, mustWork = TRUE)
   ## ============================================================
   ## DERIVAR RUTAS DESDE vcf_file
   ## ============================================================
@@ -1728,7 +1733,6 @@ vcf_process <- function(input,
     )
   )
 }
-
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) != 4) {
@@ -1741,10 +1745,3 @@ vcf_process(
   base_lab      = args[3],
   hpo_file      = args[4]
 )
-
-vcf_file      <- normalizePath(vcf_file, mustWork = TRUE)
-genes_horizon <- normalizePath(genes_horizon, mustWork = TRUE)
-base_lab      <- normalizePath(base_lab, mustWork = TRUE)
-hpo_file      <- normalizePath(hpo_file, mustWork = TRUE)
-
-
