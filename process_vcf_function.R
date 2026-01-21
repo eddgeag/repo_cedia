@@ -25,6 +25,18 @@ vcf_process <- function(input,
   ## ============================================================
   ## DERIVAR RUTAS DESDE input
   ## ============================================================
+  args <- commandArgs(trailingOnly = TRUE)
+  
+  if (length(args) != 4) {
+    stop("Uso: vcf_process.R <vcf_file> <genes_horizon.csv> <base_lab.rds> <hpo_file.txt>")
+  }
+  
+  vcf_process(
+    vcf_file      = args[1],
+    genes_horizon = args[2],
+    base_lab      = args[3],
+    hpo_file      = args[4]
+  )
   
   vcf_file      <- normalizePath(vcf_file, mustWork = TRUE)
   genes_horizon <- normalizePath(genes_horizon, mustWork = TRUE)
