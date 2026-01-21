@@ -937,7 +937,6 @@ vcf_process <- function(input,
   suppressPackageStartupMessages({
     library(data.table)
     library(brms)
-    library(PRROC)
     library(rstan)
     
   })
