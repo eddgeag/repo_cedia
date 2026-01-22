@@ -43,7 +43,7 @@ if (!file.exists(vcf_file))
 # --- BAM final post-BQSR
 bam_file <- file.path(
   output_dir,
-  "bqsr",
+  "mapping_output",
   paste0(muestra, ".sorted.rg.mark_dup_bqsr.bam")
 )
 
