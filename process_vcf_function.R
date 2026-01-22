@@ -1733,15 +1733,16 @@ vcf_process <- function(vcf_file,
     )
   )
 }
-args <- commandArgs(trailingOnly = TRUE)
-
-if (length(args) != 4) {
-  stop("Uso: vcf_process.R <vcf_file> <genes_horizon.csv> <base_lab.rds> <hpo_file.txt>")
+if (sys.nframe() == 0L) {
+  argv <- commandArgs(trailingOnly = TRUE)
+  if (length(argv) < 4) {
+    stop("Uso: vcf_process.R <vcf_file> <genes_horizon.csv> <base_lab.rds> <hpo_file.txt>")
+  }
+  
+  vcf_process(
+    vcf_file      = argv[1],
+    genes_horizon = argv[2],
+    base_lab      = argv[3],
+    hpo_file      = argv[4]
+  )
 }
-
-vcf_process(
-  vcf_file      = args[1],
-  genes_horizon = args[2],
-  base_lab      = args[3],
-  hpo_file      = args[4]
-)
