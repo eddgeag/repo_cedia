@@ -44,7 +44,7 @@ if (!file.exists(vcf_file))
 bam_file <- file.path(
   output_dir,
   "bqsr",
-  paste0(muestra, ".recal.bam")
+  paste0(muestra, ".sorted.rg.mark_dup_bqsr.bam")
 )
 
 if (!file.exists(bam_file))
