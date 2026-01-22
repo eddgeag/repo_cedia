@@ -56,7 +56,7 @@ base_lab      <- "./bd.rds"
 hpo_file      <- "./genes_to_phenotype.txt"
 
 bed_kit <- "./MGI_Exome_Capture_V5.hg38.sorted.merged.bed"
-fasta   <- file.path(NAS_ROOT, "datos_exomas/datos_gatk/hg38/hg38.fa")
+fasta   <- file.path(NAS_ROOT, "datos_exomas/datos_gatk/hg38/hg38.fasta")
 
 coverage_out <- file.path(
   output_dir,
