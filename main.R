@@ -53,7 +53,7 @@ if (!file.exists(bam_file))
 # --- Recursos fijos
 genes_horizon <- "./genes_ACMG_HORIZON.csv"
 base_lab      <- "./bd.rds"
-hpo_file      <- "./hpo_file.txt"
+hpo_file      <- "./genes_to_phenotype.txt"
 
 bed_kit <- "./MGI_Exome_Capture_V5.hg38.sorted.merged.bed"
 fasta   <- file.path(NAS_ROOT, "datos_exomas/datos_gatk/hg38/hg38.fa")
@@ -70,15 +70,34 @@ dir.create(dirname(coverage_out), showWarnings = FALSE, recursive = TRUE)
 ## 3. Curación bioinformática (R)
 ## ===============================
 message(">>> Ejecutando curación bioinformática")
+post_dir <- file.path(output_dir, "post_process_results")
+
+
+expected_outputs <- file.path(
+  post_dir,
+  c(
+    "file_ready_analysis_optimized.csv",
+    "file_ready_analysis_optimized_UNICAS.csv",
+    "file_ready_analysis_optimized_UNICAS_ACMG_HORIZON.csv"
+  )
+)
+run_vcf_process <- !all(file.exists(expected_outputs))
 
 source("process_vcf_function.R")
 
-vcf_process(
-  vcf_file      = vcf_file,
-  genes_horizon = genes_horizon,
-  base_lab      = base_lab,
-  hpo_file      = hpo_file
-)
+if (run_vcf_process) {
+  message(">>> Ejecutando curación bioinformática (vcf_process)")
+  
+  vcf_process(
+    vcf_file      = vcf_file,
+    genes_horizon = genes_horizon,
+    base_lab      = base_lab,
+    hpo_file      = hpo_file
+  )
+  
+} else {
+  message(">>> Curación bioinformática ya existe, se omite vcf_process")
+}
 
 ## ===============================
 ## 4. Cobertura on-target (shell)
