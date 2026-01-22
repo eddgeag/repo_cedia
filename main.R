@@ -127,3 +127,50 @@ res <- system2(
 message(res)
 
 message(">>> Pipeline post-proceso FINALIZADO")
+metrics_dir <- file.path(output_dir, "metrics")
+post_dir    <- file.path(output_dir, "post_process_results", "post_process_results")
+
+## ===============================
+## 2. Derivar inputs automáticamente
+## ===============================
+hist_file <- file.path(
+  metrics_dir,
+  paste0(muestra, "_coverage.depth.hist.tsv")
+)
+
+stats_file <- file.path(
+  metrics_dir,
+  paste0(muestra, "_coverage.depth.stats.txt")
+)
+
+exome_file <- file.path(
+  post_dir,
+  "file_ready_analysis_optimized.csv"
+)
+
+## Chequeos mínimos
+if (!file.exists(hist_file))
+  stop("No existe histograma de cobertura: ", hist_file)
+
+if (!file.exists(stats_file))
+  stop("No existe stats de cobertura: ", stats_file)
+
+if (!file.exists(exome_file))
+  stop("No existe exoma curado: ", exome_file)
+
+## ===============================
+## 3. Generar reporte
+## ===============================
+message(">>> Generando informe de cobertura y exoma")
+
+source("generate_exome_report.R")
+
+generate_exome_report(
+  muestra     = muestra,
+  hist_file   = hist_file,
+  stats_file  = stats_file,
+  exome_file  = exome_file,
+  metrics_dir = metrics_dir
+)
+
+message(">>> Informe generado correctamente")
