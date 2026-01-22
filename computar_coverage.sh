@@ -12,10 +12,20 @@ fi
 BAM=$1
 KIT_BED=$2
 FASTA=$3
-OUTFILE=$4   # se mantiene para compatibilidad
+OUTFILE=$4   # viene con path .../metrics/XXX_coverage.hist.txt
 
-OUT_PREFIX="${OUTFILE%.hist.txt}"
+# =================================================
+# Derivar directorio y prefijo CORRECTOS
+# =================================================
+OUT_DIR="$(dirname "$OUTFILE")"
+mkdir -p "$OUT_DIR"
 
+BASENAME="$(basename "$OUTFILE")"
+OUT_PREFIX="${OUT_DIR}/${BASENAME%.hist.txt}"
+
+# =================================================
+# Archivos de salida (TODOS en metrics/)
+# =================================================
 DEPTH_TXT="${OUT_PREFIX}.depth.txt"
 DEPTH_STATS="${OUT_PREFIX}.depth.stats.txt"
 DEPTH_HIST="${OUT_PREFIX}.depth.hist.tsv"
@@ -23,6 +33,7 @@ DEPTH_HIST="${OUT_PREFIX}.depth.hist.tsv"
 THREADS=16
 
 echo "=== Cobertura on-target (samtools depth) ==="
+echo "Output dir: $OUT_DIR"
 
 ########################################
 # 1. Cobertura por base (streaming)
@@ -64,19 +75,14 @@ fi
 ########################################
 if [ ! -f "$DEPTH_HIST" ]; then
     echo "[3/3] Generando histograma ligero..."
-    awk '
-      { h[$3]++ }
-      END {
-        for (d in h)
-          printf("%d\t%d\n", d, h[d])
-      }
-    ' "$DEPTH_TXT" \
-    | sort -n > "$DEPTH_HIST"
+    awk '{ h[$3]++ }
+         END { for (d in h) printf("%d\t%d\n", d, h[d]) }' \
+      "$DEPTH_TXT" | sort -n > "$DEPTH_HIST"
 else
     echo "[3/3] Histograma ya existe."
 fi
 
-echo "=== Cobertura finalizada ==="
-echo "Depth base:   $DEPTH_TXT"
-echo "Stats:        $DEPTH_STATS"
-echo "Histograma:   $DEPTH_HIST"
+echo "=== Cobertura finalizada correctamente ==="
+echo "Depth por base:   $DEPTH_TXT"
+echo "Stats clínicas:   $DEPTH_STATS"
+echo "Histograma:      $DEPTH_HIST"
