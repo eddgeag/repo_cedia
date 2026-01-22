@@ -12,10 +12,10 @@ fi
 BAM=$1
 KIT_BED=$2
 FASTA=$3
-OUTFILE=$4   # <-- sigue siendo el .hist
+OUTFILE=$4   # sigue siendo el .hist
 
 # =================================================
-# Archivos derivados (internos)
+# Archivos derivados
 # =================================================
 FAI="${FASTA}.fai"
 
@@ -23,9 +23,7 @@ KITSORTED="kit_sorted.bed"
 ONTARGET_BAM="ontarget.bam"
 SORTBAM="ontarget_sorted.bam"
 SORTBAM_BAI="${SORTBAM}.bai"
-GENOMESIZES="sizes.genome"
 
-# Derivar prefijo desde OUTFILE (sin tocar R)
 OUT_PREFIX="${OUTFILE%.hist.txt}"
 DEPTH_STATS_OUT="${OUT_PREFIX}.depth.stats.txt"
 
@@ -38,83 +36,72 @@ echo "=== Pipeline de cobertura on-target ==="
 # 1. Index FASTA
 ########################################
 if [ ! -f "$FAI" ]; then
-    echo "[1/8] Indexando FASTA..."
+    echo "[1/7] Indexando FASTA..."
     samtools faidx "$FASTA"
 else
-    echo "[1/8] FASTA ya indexado."
+    echo "[1/7] FASTA ya indexado."
 fi
 
 ########################################
 # 2. Ordenar BED
 ########################################
 if [ ! -f "$KITSORTED" ]; then
-    echo "[2/8] Ordenando BED del kit..."
+    echo "[2/7] Ordenando BED del kit..."
     sort -k1,1 -k2,2n -k3,3n "$KIT_BED" > "$KITSORTED"
 else
-    echo "[2/8] BED del kit ya ordenado."
+    echo "[2/7] BED del kit ya ordenado."
 fi
 
 ########################################
 # 3. Recortar BAM al kit
 ########################################
 if [ ! -f "$ONTARGET_BAM" ]; then
-    echo "[3/8] Recortando BAM al kit..."
+    echo "[3/7] Recortando BAM al kit..."
     samtools view -b -h -L "$KITSORTED" "$BAM" > "$ONTARGET_BAM"
 else
-    echo "[3/8] BAM on-target ya existe."
+    echo "[3/7] BAM on-target ya existe."
 fi
 
 ########################################
 # 4. Ordenar BAM
 ########################################
 if [ ! -f "$SORTBAM" ]; then
-    echo "[4/8] Ordenando BAM on-target..."
+    echo "[4/7] Ordenando BAM on-target..."
     samtools sort -@ "$THREADS" -T "$TMP_PREFIX" -o "$SORTBAM" "$ONTARGET_BAM"
 else
-    echo "[4/8] BAM on-target ya ordenado."
+    echo "[4/7] BAM on-target ya ordenado."
 fi
 
 ########################################
 # 5. Indexar BAM
 ########################################
 if [ ! -f "$SORTBAM_BAI" ]; then
-    echo "[5/8] Indexando BAM..."
+    echo "[5/7] Indexando BAM..."
     samtools index "$SORTBAM"
 else
-    echo "[5/8] Índice BAM ya existe."
+    echo "[5/7] Índice BAM ya existe."
 fi
 
 ########################################
-# 6. Genome sizes (para bedtools)
-########################################
-if [ ! -f "$GENOMESIZES" ]; then
-    echo "[6/8] Generando genome sizes..."
-    samtools idxstats "$SORTBAM" | cut -f1,2 > "$GENOMESIZES"
-else
-    echo "[6/8] Genome sizes ya existe."
-fi
-
-########################################
-# 7. Histograma de cobertura (QC)
+# 6. Histograma de cobertura (QC)
+#    ❗ SIN -sorted NI -g (robusto)
 ########################################
 if [ ! -f "$OUTFILE" ]; then
-    echo "[7/8] Calculando histograma de cobertura (bedtools)..."
+    echo "[6/7] Calculando histograma de cobertura (bedtools)..."
     bedtools coverage \
         -a "$KITSORTED" \
         -b "$SORTBAM" \
-        -g "$GENOMESIZES" \
-        -sorted \
         -hist > "$OUTFILE"
 else
-    echo "[7/8] Histograma ya existe."
+    echo "[6/7] Histograma ya existe."
 fi
 
 ########################################
-# 8. Cobertura REAL estilo proveedor
+# 7. Cobertura REAL estilo proveedor
 #    (samtools depth, sin ceros)
 ########################################
 if [ ! -f "$DEPTH_STATS_OUT" ]; then
-    echo "[8/8] Calculando cobertura real (samtools depth)..."
+    echo "[7/7] Calculando cobertura real (samtools depth)..."
 
     samtools depth \
         -b "$KITSORTED" \
@@ -135,9 +122,9 @@ if [ ! -f "$DEPTH_STATS_OUT" ]; then
     ' > "$DEPTH_STATS_OUT"
 
 else
-    echo "[8/8] Métricas depth ya existen."
+    echo "[7/7] Métricas depth ya existen."
 fi
 
 echo "=== Pipeline de cobertura finalizado ==="
-echo "Histograma QC:      $OUTFILE"
-echo "Cobertura real:     $DEPTH_STATS_OUT"
+echo "Histograma QC:   $OUTFILE"
+echo "Cobertura real:  $DEPTH_STATS_OUT"
