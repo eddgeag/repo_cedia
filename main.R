@@ -21,8 +21,11 @@ year_full <- paste0("20", yy)
 muestra_dir <- file.path(NAS_ROOT, year_full, muestra)
 output_dir  <- file.path(muestra_dir, "output_dir")
 
-if (!dir.exists(output_dir))
-  stop("output_dir no existe: ", output_dir)
+# if (!dir.exists(output_dir))
+#   stop("output_dir no existe: ", output_dir)
+if (!dir.exists(output_dir)) {
+  message(">>> output_dir no existe; será creado por pipeline_lab.R si es necesario")
+}
 
 ## ===============================
 ## 2. Whitelist (reglas duras)
