@@ -126,11 +126,10 @@ if (length(missing_core) > 0L) {
 ## ===============================
 ## 4.1 Asegurar estructura mínima (YA existe output_dir)
 ## ===============================
-dir.create(
-  keep_dirs_structure,
-  showWarnings = FALSE,
-  recursive = TRUE
-)
+for (d in keep_dirs_structure) {
+  dir.create(d, showWarnings = FALSE, recursive = TRUE)
+}
+
 
 ## ===============================
 ## 5. Curación bioinformática
