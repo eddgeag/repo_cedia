@@ -9,7 +9,7 @@ if (length(args) != 1) {
   stop("Uso: Rscript main.R <MUESTRA>\nEj: Rscript main.R DX046-25")
 }
 muestra <- args[1]
-
+t_start <- Sys.time()
 ## ===============================
 ## 1. Paths base
 ## ===============================
@@ -39,16 +39,22 @@ keep_dirs <- file.path(
   output_dir,
   c("QC", "post_process_results", "metrics", "bam_metrics")
 )
+keep_dirs_structure <- file.path(
+  output_dir,
+  c("mapping_output", "anotation", "variantCalling")
+)
+dir.create(keep_dirs_structure, showWarnings = FALSE, recursive = TRUE)
 
 ## ===============================
 ## 3. Función de limpieza
 ## ===============================
-cleanup_output_dir <- function(output_dir, keep_files, keep_dirs) {
+cleanup_output_dir <- function(output_dir, keep_files, keep_dirs, keep_dirs_structure) {
   
   norm <- function(x) normalizePath(x, winslash = "/", mustWork = FALSE)
   
   keep_files_n <- norm(keep_files)
   keep_dirs_n  <- norm(keep_dirs)
+  keep_dirs_structure_n <- norm(keep_dirs_structure)
   
   all_paths <- list.files(
     output_dir,
@@ -62,9 +68,15 @@ cleanup_output_dir <- function(output_dir, keep_files, keep_dirs) {
   all_n <- norm(all_paths)
   
   is_keep_file <- all_n %in% keep_files_n
-  is_keep_dir  <- vapply(
+  
+  is_keep_dir <- vapply(
     all_n,
-    function(p) any(startsWith(p, paste0(keep_dirs_n, "/")) | p %in% keep_dirs_n),
+    function(p) {
+      # conservar carpetas completas
+      any(startsWith(p, paste0(keep_dirs_n, "/")) | p %in% keep_dirs_n) ||
+        # conservar SOLO la estructura (no el contenido)
+        p %in% keep_dirs_structure_n
+    },
     logical(1)
   )
   
@@ -199,6 +211,18 @@ generate_exome_report(
 ## 8. Limpieza final
 ## ===============================
 message(">>> Limpieza final del output_dir")
-cleanup_output_dir(output_dir, keep_files, keep_dirs)
+cleanup_output_dir(
+  output_dir,
+  keep_files,
+  keep_dirs,
+  keep_dirs_structure
+)
 
 message(">>> main.R finalizado correctamente")
+t_end <- Sys.time()
+elapsed <- difftime(t_end, t_start, units = "mins")
+
+message(sprintf(
+  ">>> Tiempo total de ejecución: %.2f minutos",
+  as.numeric(elapsed)
+))
