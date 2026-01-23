@@ -7,7 +7,7 @@ suppressPackageStartupMessages({
 args <- commandArgs(trailingOnly = TRUE)
 
 if (length(args) != 1) {
-  stop("Uso: Rscript post_pipeline.R <MUESTRA>\nEj: Rscript post_pipeline.R DX046-25")
+  stop("Uso: Rscript main.R <MUESTRA>\nEj: Rscript main.R DX046-25")
 }
 
 muestra <- args[1]
@@ -128,7 +128,7 @@ message(res)
 
 message(">>> Pipeline post-proceso FINALIZADO")
 metrics_dir <- file.path(output_dir, "metrics")
-post_dir    <- file.path(output_dir, "post_process_results", "post_process_results")
+post_dir    <- file.path(output_dir, "post_process_results")
 
 ## ===============================
 ## 2. Derivar inputs automáticamente
