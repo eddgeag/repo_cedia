@@ -1994,7 +1994,7 @@ folder_fasta     <- file.path(NAS_ROOT, "datos_exomas/datos_gatk/hg38")
 folder_data_gatk <- file.path(NAS_ROOT, "datos_exomas/datos_gatk")
 
 # BED clínico (ahora ES INPUT de haplotype_caller)
-bed_file <- file.path("./MGI_Exome_Capture_V5.hg38.sorted.merged.bed")
+bed_file <- file.path("./Twist2.hg38.sorted.merged.bed")
 
 # Binarios / herramientas (aunque las funciones tienen defaults, se declaran aquí)
 gatk_bin     <- path.expand("~/tools/gatk-4.6.1.0/gatk")

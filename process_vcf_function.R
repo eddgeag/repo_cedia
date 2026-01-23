@@ -1,12 +1,5 @@
 
 
-
-
-
-
-
-
-
 vcf_process <- function(vcf_file,
                         # ruta completa al VCF .vcf.gz
                         genes_horizon,
@@ -440,23 +433,19 @@ vcf_process <- function(vcf_file,
     if (any(ok)) {
       parts <- strsplit(ad[ok], ",", fixed = TRUE)
       
-      # ref = 1er valor; alt1 = 2do valor (coherente con tu ALT que se queda con el primer ALT)
-      refv <- vapply(parts, function(x)
-        as.integer(x[1]), integer(1))
-      alt1v <- vapply(parts, function(x)
-        as.integer(x[2]), integer(1))
-      sumv <- vapply(parts, function(x)
-        sum(as.integer(x)), integer(1))
+      refv  <- vapply(parts, function(x) as.integer(x[1]), integer(1))
+      alt1v <- vapply(parts, function(x) as.integer(x[2]), integer(1))
+      sumv  <- vapply(parts, function(x) sum(as.integer(x)), integer(1))
       
-      ad_ref[ok] <- refv
+      ad_ref[ok]  <- refv
       ad_alt1[ok] <- alt1v
-      dp_ad[ok] <- sumv
+      dp_ad[ok]   <- sumv
       
-      den <- (refv + alt1v)
-      ab_ok <- den > 0
-      ab[ok][ab_ok] <- alt1v[ab_ok] / den[ab_ok]
+      den <- refv + alt1v
+      idx <- which(ok)[den > 0]
+      
+      ab[idx] <- alt1v[den > 0] / den[den > 0]
     }
-    
     list(ad_ref, ad_alt1, dp_ad, ab)
   }]
   
@@ -1487,7 +1476,7 @@ vcf_process <- function(vcf_file,
     )), logical(1))
   
   keep <- c("vcf_dt_", objs[is_fun])
-  rm(list = setdiff(objs, keep), envir = .GlobalEnv)
+  # rm(list = setdiff(objs, keep), envir = .GlobalEnv)
   gc(verbose = TRUE)
   
   exome_dt <- vcf_dt_
