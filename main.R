@@ -8,8 +8,10 @@ args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 1) {
   stop("Uso: Rscript main.R <MUESTRA>\nEj: Rscript main.R DX046-25")
 }
+
 muestra <- args[1]
 t_start <- Sys.time()
+
 ## ===============================
 ## 1. Paths base
 ## ===============================
@@ -21,8 +23,6 @@ year_full <- paste0("20", yy)
 muestra_dir <- file.path(NAS_ROOT, year_full, muestra)
 output_dir  <- file.path(muestra_dir, "output_dir")
 
-# if (!dir.exists(output_dir))
-#   stop("output_dir no existe: ", output_dir)
 if (!dir.exists(output_dir)) {
   message(">>> output_dir no existe; será creado por pipeline_lab.R si es necesario")
 }
@@ -42,16 +42,18 @@ keep_dirs <- file.path(
   output_dir,
   c("QC", "post_process_results", "metrics", "bam_metrics")
 )
+
 keep_dirs_structure <- file.path(
   output_dir,
   c("mapping_output", "anotation", "variantCalling")
 )
-dir.create(keep_dirs_structure, showWarnings = FALSE, recursive = TRUE)
 
 ## ===============================
 ## 3. Función de limpieza
 ## ===============================
 cleanup_output_dir <- function(output_dir, keep_files, keep_dirs, keep_dirs_structure) {
+  
+  if (!dir.exists(output_dir)) return(invisible(NULL))
   
   norm <- function(x) normalizePath(x, winslash = "/", mustWork = FALSE)
   
@@ -61,9 +63,9 @@ cleanup_output_dir <- function(output_dir, keep_files, keep_dirs, keep_dirs_stru
   
   all_paths <- list.files(
     output_dir,
-    recursive   = TRUE,
+    recursive = TRUE,
     full.names = TRUE,
-    all.files  = TRUE,
+    all.files = TRUE,
     include.dirs = TRUE,
     no.. = TRUE
   )
@@ -75,9 +77,7 @@ cleanup_output_dir <- function(output_dir, keep_files, keep_dirs, keep_dirs_stru
   is_keep_dir <- vapply(
     all_n,
     function(p) {
-      # conservar carpetas completas
       any(startsWith(p, paste0(keep_dirs_n, "/")) | p %in% keep_dirs_n) ||
-        # conservar SOLO la estructura (no el contenido)
         p %in% keep_dirs_structure_n
     },
     logical(1)
@@ -98,9 +98,6 @@ if (length(missing_core) > 0L) {
   
   message(">>> Faltan artefactos críticos del exoma:")
   message(paste0(" - ", missing_core, collapse = "\n"))
-  
-  message(">>> Limpieza previa (dejando solo QC / metrics / bam_metrics si existen)")
-  cleanup_output_dir(output_dir, keep_files, keep_dirs)
   
   message(">>> Ejecutando pipeline_lab.R (pipeline completo GATK)")
   
@@ -125,6 +122,15 @@ if (length(missing_core) > 0L) {
     )
   }
 }
+
+## ===============================
+## 4.1 Asegurar estructura mínima (YA existe output_dir)
+## ===============================
+dir.create(
+  keep_dirs_structure,
+  showWarnings = FALSE,
+  recursive = TRUE
+)
 
 ## ===============================
 ## 5. Curación bioinformática
@@ -214,6 +220,7 @@ generate_exome_report(
 ## 8. Limpieza final
 ## ===============================
 message(">>> Limpieza final del output_dir")
+
 cleanup_output_dir(
   output_dir,
   keep_files,
@@ -221,10 +228,13 @@ cleanup_output_dir(
   keep_dirs_structure
 )
 
-message(">>> main.R finalizado correctamente")
+## ===============================
+## 9. Tiempo total
+## ===============================
 t_end <- Sys.time()
 elapsed <- difftime(t_end, t_start, units = "mins")
 
+message(">>> main.R finalizado correctamente")
 message(sprintf(
   ">>> Tiempo total de ejecución: %.2f minutos",
   as.numeric(elapsed)
