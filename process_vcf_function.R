@@ -1689,7 +1689,70 @@ vcf_process <- function(vcf_file,
       )
     )
   )]
+  ## ===============================
+  ## 1. HPO: pasar a data.table y colapsar por gen
+  ## ===============================
+  hpo_df <- read.delim(hpo_file)
+  hpo_dt <- as.data.table(hpo_df)
   
+  hpo_collapsed <- hpo_dt[
+    ,
+    .(
+      HPO_IDS     = paste(unique(hpo_id), collapse = "|"),
+      HPO_NAMES   = paste(unique(hpo_name), collapse = "|"),
+      DISEASE_IDS = paste(unique(disease_id), collapse = "|")
+    ),
+    by = gene_symbol
+  ]
+  
+  ## ===============================
+  ## 2. Preparar exome_dt
+  ## ===============================
+  setDT(exome_dt)
+  exome_dt[, row_id := .I]
+  
+  ## Expandir genes (coma → filas)
+  exome_long <- exome_dt[
+    ,
+    .(gene_symbol = trimws(unlist(strsplit(GENES_AFFECTED, ",")))),
+    by = row_id
+  ]
+  
+  ## ===============================
+  ## 3. Merge gen–HPO
+  ## ===============================
+  exome_long <- merge(
+    exome_long,
+    hpo_collapsed,
+    by = "gene_symbol",
+    all.x = TRUE
+  )
+  
+  ## ===============================
+  ## 4. Recolapsar por variante original
+  ## ===============================
+  hpo_per_variant <- exome_long[
+    ,
+    .(
+      HPO_IDS     = paste(HPO_IDS, collapse = ","),
+      HPO_NAMES   = paste(HPO_NAMES, collapse = ","),
+      DISEASE_IDS = paste(DISEASE_IDS, collapse = ",")
+    ),
+    by = row_id
+  ]
+  
+  ## ===============================
+  ## 5. Añadir columnas finales a exome_dt
+  ## ===============================
+  exome_dt <- merge(
+    exome_dt,
+    hpo_per_variant,
+    by = "row_id",
+    all.x = TRUE
+  )
+  
+  ## Opcional: limpiar
+  exome_dt[, row_id := NULL]
   ## exoma a escribir
   ## ============================================================
   ## EXPORTES FINALES
