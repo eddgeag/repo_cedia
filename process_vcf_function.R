@@ -2189,20 +2189,104 @@ vcf_process <- function(vcf_file,
     "DEPRIORITIZE"
   )]
   
+  columnas <- c(
+    "LOCUS",
+    "GENES_AFFECTED",
+    "VAR_IDX",
+    "CHROM",
+    "START",
+    "END",
+    "WIDTH",
+    "REF",
+    "ALT",
+    "QUAL",
+    "COHORT_AF",
+    "N_EXOMES_LOCUS",
+    "EXOMES_LOCUS",
+    "FILTER",
+    "AB_EXPECTATION",
+    "AB_SUSPECT",
+    "INHERITANCE_HPO",
+    "ZYGOSITY",
+    "N_HET",
+    "N_PHASES",
+    "COMPOUND_HET",
+    "TRANSCRIPTS_AFFECTED",
+    "N_TRANSCRIPTS",
+    "EFFECTS",
+    "IMPACTS",
+    "BIOTYPES",
+    "NT_CHANGE",
+    "AA_CHANGE",
+    "DISTANCE_TO_FEATURE",
+    "ALIGNMENT",
+    "GT",
+    "AD",
+    "DP_FORMAT",
+    "GQ",
+    "PGT",
+    "PID",
+    "LOF",
+    "NMD",
+    "VARTYPE",
+    "ORIGIN",
+    "RS_ID",
+    "ALLELEID",
+    "ACMG_CLASS_FINAL",
+    "ACMG_SUMMARY",
+    "LAB_FUNCTIONAL_CONFIDENCE",
+    "LAB_PATHOGENIC_CONFIDENCE",
+    "LAB_FINAL_PRIORITY",
+    "CLNSIG_CLINVAR",
+    "CLNSIGSCV",
+    "CLNDN",
+    "CLNVC",
+    "CLNSIGINCL",
+    "CLNDISDB",
+    "dbNSFP_clinvar_Orphanet_id",
+    "dbNSFP_clinvar_MedGen_id",
+    "dbNSFP_HGVSp_snpEff",
+    "CLNHGVS",
+    "dbNSFP_ClinPred_score",
+    "dbNSFP_gnomAD4.1_joint_POPMAX_AF",
+    "dbNSFP_MPC_score",
+    "dbNSFP_Polyphen2_HVAR_score",
+    "dbNSFP_REVEL_score",
+    "dbNSFP_HGVSc_snpEff",
+    "dbNSFP_clinvar_OMIM_id",
+    "dbNSFP_SIFT_score",
+    "dbNSFP_MANE",
+    "dbNSFP_Polyphen2_HDIV_score",
+    "dbNSFP_APPRIS",
+    "dbNSFP_MetaRNN_pred",
+    "dbNSFP_Polyphen2_HDIV_pred",
+    "dbNSFP_Polyphen2_HVAR_pred",
+    "dbNSFP_SIFT_pred",
+    "dbNSFP_AlphaMissense_pred",
+    "dbNSFP_CADD_phred",
+    "HPO_IDS",
+    "HPO_NAMES",
+    "DISEASE_IDS"
+  )
+  
+  exome_dt.new <- exome_dt[, ..columnas]
   
   ## ============================================================
   ## EXPORTES FINALES
   ## ============================================================
   
-  unicas <- exome_dt[N_EXOMES_LOCUS == 1]
+  unicas <- exome_dt.new[N_EXOMES_LOCUS == 1]
   unicas_second <- unicas[GENES_AFFECTED %in% genes_amcg_horizon]
+  f_all.complete  <- file.path(out_dir, "file_ready_analysis_optimized_complete.csv")
   
   f_all  <- file.path(out_dir, "file_ready_analysis_optimized.csv")
   f_uni  <- file.path(out_dir, "file_ready_analysis_optimized_UNICAS.csv")
   f_hor  <- file.path(out_dir,
                       "file_ready_analysis_optimized_UNICAS_ACMG_HORIZON.csv")
   
-  fwrite(exome_dt, f_all)
+  fwrite(exome_dt, f_all.complete)
+  
+  fwrite(exome_dt.new, f_all)
   fwrite(unicas, f_uni)
   fwrite(unicas_second, f_hor)
   
