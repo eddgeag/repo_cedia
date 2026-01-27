@@ -543,9 +543,14 @@ vcf_process <- function(vcf_file,
   ## 2) Expandir GENES_AFFECTED
   ## ================================
   
-  genes_long <- vcf_dt[IS_HET_REAL == TRUE &
-                         !is.na(GENES_AFFECTED), .(VAR_IDX, GENE = unlist(strsplit(GENES_AFFECTED, ",", fixed = TRUE)), PID, PGT)]
   
+  genes_long <- vcf_dt[
+    IS_HET_REAL == TRUE & !is.na(GENES_AFFECTED),
+    .(GENE = trimws(unlist(strsplit(GENES_AFFECTED, ","))),
+      PID,
+      PGT),
+    by = VAR_IDX
+  ]
   genes_long[, GENE := trimws(GENE)]
   
   
